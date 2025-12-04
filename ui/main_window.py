@@ -1,9 +1,10 @@
 """Главное окно приложения"""
 import os
 import random
-from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                              QLabel, QPushButton, QLineEdit, QComboBox, 
-                              QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog)
+import logging
+from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                               QLabel, QPushButton, QLineEdit, QComboBox,
+                               QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog)
 from PySide6.QtGui import QFont, QPixmap, QIcon
 from PySide6.QtCore import Qt, QTimer, QSize
 
@@ -774,9 +775,9 @@ class SpellingTrainer(QMainWindow):
             # Для конкретной категории
             all_words_in_category = self.word_repository.get_words_by_category(current_category)
             total_words = len(all_words_in_category)
-            # Считаем использованные слова этой категории по uid
-            used_words_set = training_state.used_words
-            used_words_count = sum(1 for word_data in all_words_in_category if word_data.uid in used_words_set)
+            # Считаем использованные слова этой категории по category-specific tracking
+            used_words_set = training_state.used_words_by_category[current_category]
+            used_words_count = len(used_words_set)
             # Получаем счетчики правильных/неправильных ответов для текущей категории
             correct = training_state.correct_answers_count.get(current_category, 0)
             incorrect = training_state.incorrect_answers_count.get(current_category, 0)
@@ -847,6 +848,7 @@ class SpellingTrainer(QMainWindow):
             training_state.correct_answers_count.clear()
             training_state.incorrect_answers_count.clear()
             training_state.used_words.clear()
+            training_state.used_words_by_category.clear()  # Также очищаем category-specific used words
             training_state.repeat_words.clear()
             
             self.is_first_load = False
@@ -874,8 +876,8 @@ class SpellingTrainer(QMainWindow):
             # УДАЛЯЕМ СЛОВА НА ПОВТОРЕНИИ ДЛЯ ТЕКУЩЕЙ КАТЕГОРИИ
             training_state.repeat_words = [rw for rw in training_state.repeat_words if rw.category != current_category]
             
-            # Удаляем только слова текущей категории из used_words по uid
-            training_state.used_words -= category_uids
+            # Удаляем слова только из списка использованных слов для текущей категории
+            training_state.used_words_by_category[current_category] -= category_uids
             
             # Сбрасываем флаг первого запуска
             self.is_first_load = False
@@ -1161,7 +1163,7 @@ class SpellingTrainer(QMainWindow):
             else:
                 self._show_default_image()
         except Exception as e:
-            logger.error(f"Ошибка при загрузке изображения: {e}")
+            logging.error(f"Ошибка при загрузке изображения: {e}")
             self._show_default_image()
         
         # Сохраняем информацию об аудио
@@ -1198,7 +1200,7 @@ class SpellingTrainer(QMainWindow):
             # Если ни один из путей не сработал, показываем текст
             self.image_label.setText("Изображение не доступно")
         except Exception as e:
-            logger.error(f"Ошибка при отображении заглушки изображения: {e}")
+            logging.error(f"Ошибка при отображении заглушки изображения: {e}")
             self.image_label.setText("Ошибка загрузки изображения")
     
     def play_audio(self):
@@ -1242,6 +1244,15 @@ class SpellingTrainer(QMainWindow):
                         is_repetition = True
                         current_repeat_word = repeat_word
                         break
+            # ДОБАВЛЯЕМ ЛОГИКУ: если слово не найдено в текущей категории, ищем его в других категориях
+            # Это решает проблему, когда слово было добавлено в повтор из категории "Все"
+            if not is_repetition and self.repeat_mistakes:
+                for repeat_word in training_state.repeat_words:
+                    if (repeat_word.word_uid == self.current_word_data.uid and
+                        repeat_word.next_show_after <= 0):
+                        is_repetition = True
+                        current_repeat_word = repeat_word
+                        break  # Используем первое найденное совпадение
             
             # ОБНОВЛЕННАЯ ЛОГИКА ПРОВЕРКИ С УЧЕТОМ ПОЗИЦИЙ ВАЖНЫХ БУКВ
             if self.current_word_data.case_sensitive:
@@ -1260,7 +1271,11 @@ class SpellingTrainer(QMainWindow):
             # ОБНОВЛЯЕМ ЛОГИКУ ДОБАВЛЕНИЯ В USED_WORDS ↓
             if not is_repetition:
                 # Добавляем слово в used_words только если это не повторение
+                # Добавляем в глобальный список для совместимости
                 training_state.used_words.add(self.current_word_data.uid)
+                # Также добавляем в список использованных слов для текущей категории
+                if current_category:
+                    training_state.used_words_by_category[current_category].add(self.current_word_data.uid)
             
             if is_correct:
                 # Правильный ответ - ОБНОВЛЯЕМ ТОЛЬКО ТЕКУЩИЙ СЧЁТ
@@ -1278,9 +1293,10 @@ class SpellingTrainer(QMainWindow):
                     
                 # ОБРАБАТЫВАЕМ ПОВТОРЕНИЕ ЕСЛИ ЭТО ПОВТОРЕНИЕ ↓
                 if is_repetition and current_repeat_word:
+                    # Используем оригинальную категорию повтора, а не текущую
                     training_state.update_repeat_word_after_attempt(
                         self.current_word_data.uid,
-                        current_category,
+                        current_repeat_word.category,
                         self.repeat_mistakes_range,
                         True  # is_correct
                     )
@@ -1310,9 +1326,10 @@ class SpellingTrainer(QMainWindow):
                 if self.repeat_mistakes and current_category:
                     if is_repetition and current_repeat_word:
                         # Если это уже повторение - обновляем его
+                        # Используем оригинальную категорию повтора, а не текущую
                         training_state.update_repeat_word_after_attempt(
                             self.current_word_data.uid,
-                            current_category,
+                            current_repeat_word.category,
                             self.repeat_mistakes_range,
                             False  # is_correct
                         )
@@ -1336,7 +1353,7 @@ class SpellingTrainer(QMainWindow):
             self.word_repository.save_data()
             
         except Exception as e:
-            logger.error(f"Ошибка при проверке ответа: {e}")
+            logging.error(f"Ошибка при проверке ответа: {e}")
             show_silent_message(self, "Ошибка", f"Произошла ошибка при проверке ответа: {str(e)}")
         
     def _check_important_positions(self, user_answer, correct_answer, important_positions):

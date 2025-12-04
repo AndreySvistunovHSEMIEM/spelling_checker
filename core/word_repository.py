@@ -239,6 +239,13 @@ class WordRepository:
                 if isinstance(used_words_data, list):
                     self.app_data.training_state.used_words = set(used_words_data)
             
+            # ЗАГРУЖАЕМ использованные слова по категориям
+            if "used_words_by_category" in training_data:
+                used_words_by_category_data = training_data.get("used_words_by_category", {})
+                for category, words in used_words_by_category_data.items():
+                    if isinstance(words, list):
+                        self.app_data.training_state.used_words_by_category[category] = set(words)
+            
             if "current_category" in training_data:
                 self.app_data.training_state.current_category = training_data.get("current_category", "")
             
@@ -361,6 +368,31 @@ class WordRepository:
         
         # Если used_words пустой или уже содержит uid (цифры), пропускаем
         if not training_state.used_words:
+            # Также проверяем category-specific used words
+            for category in list(training_state.used_words_by_category.keys()):
+                used_words_in_category = training_state.used_words_by_category[category]
+                if not used_words_in_category:
+                    continue
+                
+                # Проверяем, есть ли строковые значения (старые названия слов)
+                string_words = {word for word in used_words_in_category if isinstance(word, str) and not word.isdigit()}
+                
+                if string_words:
+                    # Мигрируем старые названия на uid
+                    new_used_words = set()
+                    for word_name in used_words_in_category:
+                        if isinstance(word_name, str) and not word_name.isdigit():
+                            # Ищем слово по названию и берем первый uid
+                            for word_data in self.app_data.words:
+                                if word_data.word == word_name:
+                                    new_used_words.add(word_data.uid)
+                                    break
+                        else:
+                            # Уже uid, оставляем как есть
+                            new_used_words.add(word_name)
+                    
+                    training_state.used_words_by_category[category] = new_used_words
+            self.save_data()
             return
         
         # Проверяем, есть ли строковые значения (старые названия слов)
@@ -381,7 +413,33 @@ class WordRepository:
                     new_used_words.add(word_name)
             
             training_state.used_words = new_used_words
-            self.save_data()
+        
+        # Также проверяем category-specific used words
+        for category in list(training_state.used_words_by_category.keys()):
+            used_words_in_category = training_state.used_words_by_category[category]
+            if not used_words_in_category:
+                continue
+            
+            # Проверяем, есть ли строковые значения (старые названия слов)
+            string_words = {word for word in used_words_in_category if isinstance(word, str) and not word.isdigit()}
+            
+            if string_words:
+                # Мигрируем старые названия на uid
+                new_used_words = set()
+                for word_name in used_words_in_category:
+                    if isinstance(word_name, str) and not word_name.isdigit():
+                        # Ищем слово по названию и берем первый uid
+                        for word_data in self.app_data.words:
+                            if word_data.word == word_name:
+                                new_used_words.add(word_data.uid)
+                                break
+                    else:
+                        # Уже uid, оставляем как есть
+                        new_used_words.add(word_name)
+                
+                training_state.used_words_by_category[category] = new_used_words
+        
+        self.save_data()
 
     def _rebuild_categories_from_words(self):
         """Перестраивает список категорий из всех слов, фильтруя некорректные"""
@@ -429,11 +487,17 @@ class WordRepository:
             for category, words in self.app_data.training_state.wrong_answers.items():
                 wrong_answers_dict[category] = dict(words)
             
+            # Преобразуем used_words_by_category для сохранения
+            used_words_by_category_dict = {}
+            for category, words in self.app_data.training_state.used_words_by_category.items():
+                used_words_by_category_dict[category] = list(words)
+            
             progress_data = {
                 "training_state": {
                     "points_score": self.app_data.training_state.points_score,
                     "rubles_score": self.app_data.training_state.rubles_score,
                     "used_words": list(self.app_data.training_state.used_words),
+                    "used_words_by_category": used_words_by_category_dict,
                     "current_category": self.app_data.training_state.current_category,
                     "mistakes_count": mistakes_count_dict,
                     "wrong_answers": wrong_answers_dict,
@@ -568,15 +632,18 @@ class WordRepository:
     
     def get_available_words(self, category: str) -> List[WordData]:
         """Возвращает доступные слова категории (ещё не использованные)"""
-        used_words = self.app_data.training_state.used_words
+        training_state = self.app_data.training_state
         
         if category == "Все":
             # Для режима "Все" возвращаем все неиспользованные слова
+            used_words = training_state.used_words
             return [word for word in self.app_data.words if word.uid not in used_words]
         
         words_in_category = self.get_words_by_category(category)
-        # Оптимизация: used_words уже set, поэтому поиск O(1)
-        return [word for word in words_in_category if word.uid not in used_words]
+        # Для конкретной категории используем category-specific used_words
+        used_words_in_category = training_state.used_words_by_category[category]
+        # Оптимизация: used_words_in_category уже set, поэтому поиск O(1)
+        return [word for word in words_in_category if word.uid not in used_words_in_category]
     
     def add_word(self, word_data: WordData):
         """
@@ -723,6 +790,10 @@ class WordRepository:
             if word_data and category in word_data.categories and len(word_data.categories) == 1:
                 words_to_remove.add(word_uid)
         training_state.used_words -= words_to_remove
+        
+        # Также удаляем использованные слова для удаляемой категории
+        if category in training_state.used_words_by_category:
+            del training_state.used_words_by_category[category]
         
         # Удаляем категорию из общего списка (безопасное удаление)
         if category in self.app_data.categories:

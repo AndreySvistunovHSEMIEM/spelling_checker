@@ -153,7 +153,10 @@ class TrainingState:
     score: float = 0.0  # Legacy field for backward compatibility
     points_score: int = 0  # Separate points account
     rubles_score: float = 0.0  # Separate rubles account
+    # ГЛОБАЛЬНЫЙ список использованных слов для совместимости
     used_words: Set[str] = field(default_factory=set)
+    # ОТДЕЛЬНЫЙ список использованных слов для каждой категории
+    used_words_by_category: Dict[str, Set[str]] = field(default_factory=lambda: defaultdict(set))
     current_word: WordData = None
     current_category: str = ""
     # ОТДЕЛЬНЫЕ счетчики ошибок для каждой категории
@@ -176,6 +179,9 @@ class TrainingState:
                 self.rubles_score = float(self.score)
             # Обнуляем старое поле
             self.score = 0.0
+        
+        # Инициализируем used_words_by_category как defaultdict если пустой
+        # Это будет работать корректно благодаря field(default_factory=lambda: defaultdict(set))
     
     def increment_correct(self, category: str):
         """Увеличивает счётчик правильных ответов категории"""
@@ -220,10 +226,12 @@ class TrainingState:
             # Удаляем слова на повторении этой категории
             self.repeat_words = [rw for rw in self.repeat_words if rw.category != category]
             # Удаляем использованные слова только этой категории
-            # Теперь это делается в WordRepository, так как нужен доступ к данным слов
+            if category in self.used_words_by_category:
+                del self.used_words_by_category[category]
         else:
             # Сброс для всех категорий
             self.used_words.clear()
+            self.used_words_by_category.clear()
             self.mistakes_count.clear()
             self.wrong_answers.clear()
             self.correct_answers_count.clear()
@@ -266,12 +274,32 @@ class TrainingState:
             if repeat_word.next_show_after > 0:
                 repeat_word.next_show_after -= 1
     
-    def update_repeat_word_after_attempt(self, word_uid: str, category: str, 
+    def update_repeat_word_after_attempt(self, word_uid: str, category: str,
                                        repeat_range: str, is_correct: bool):
         """Обновляет слово после попытки повторения"""
+        # Сначала ищем слово для повторения в той же категории
         for repeat_word in self.repeat_words:
-            if (repeat_word.word_uid == word_uid and 
+            if (repeat_word.word_uid == word_uid and
                 repeat_word.category == category):
+                
+                if repeat_word.current_attempt >= repeat_word.total_attempts_needed:
+                    # Достигли максимального количества попыток - удаляем слово
+                    self.repeat_words.remove(repeat_word)
+                else:
+                    # Увеличиваем счетчик попыток и устанавливаем новый интервал
+                    repeat_word.current_attempt += 1
+                    try:
+                        min_val, max_val = map(int, repeat_range.split('-'))
+                        repeat_word.next_show_after = random.randint(min_val, max_val)
+                    except (ValueError, AttributeError):
+                        repeat_word.next_show_after = random.randint(7, 10)
+                return  # Завершаем после обновления найденного слова
+        
+        # Если слово не найдено в той же категории, ищем его в других категориях
+        # Это решает проблему, когда слово было добавлено в повтор из одной категории,
+        # но пользователь отвечает на него в другой категории
+        for repeat_word in self.repeat_words:
+            if repeat_word.word_uid == word_uid:
                 
                 if repeat_word.current_attempt >= repeat_word.total_attempts_needed:
                     # Достигли максимального количества попыток - удаляем слово
