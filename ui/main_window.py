@@ -14,7 +14,11 @@ from core.audio_service import AudioService
 from core.music_service import MusicService
 from core.word_repository import WordRepository
 from utils.helpers import show_silent_message, create_scaled_pixmap
-from ui.dialogs import WordManagerDialog, ProblemWordsDialog, SettingsDialog, ChangePasswordDialog
+from ui.dialogs.word_management.word_dialogs import WordManagerDialog, WordEditorDialog, CategoryMoveDialog
+from ui.dialogs.statistics.statistics_dialogs import ProblemWordsDialog
+from ui.dialogs.settings.settings_dialogs import SettingsDialog
+from ui.dialogs.auth.password_dialogs import ChangePasswordDialog
+from ui.dialogs.import_export.data_dialogs import BulkImportDialog, ExportCategoriesDialog
 from ui.menu_bar import MenuBar
 
 class SpellingTrainer(QMainWindow):

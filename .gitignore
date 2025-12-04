@@ -888,3 +888,14 @@ core/__pycache__/media_manager.cpython-313.pyc
 core/__pycache__/models.cpython-313.pyc
 core/__pycache__/music_service.cpython-313.pyc
 core/__pycache__/word_repository.cpython-313.pyc
+ui/dialogs/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/auth/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/auth/__pycache__/password_dialogs.cpython-313.pyc
+ui/dialogs/import_export/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/import_export/__pycache__/data_dialogs.cpython-313.pyc
+ui/dialogs/settings/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/settings/__pycache__/settings_dialogs.cpython-313.pyc
+ui/dialogs/statistics/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/statistics/__pycache__/statistics_dialogs.cpython-313.pyc
+ui/dialogs/word_management/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/word_management/__pycache__/word_dialogs.cpython-313.pyc
