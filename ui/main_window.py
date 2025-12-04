@@ -1553,6 +1553,21 @@ class SpellingTrainer(QMainWindow):
             # Явное освобождение ресурсов диалога
             if dialog:
                 dialog.deleteLater()
+    
+    def add_new_word(self):
+        """Открытие диалога добавления нового слова"""
+        dialog = None
+        try:
+            dialog = WordEditorDialog(self, self.word_repository, self.media_manager)
+            if dialog.exec():
+                # После добавления слова обновляем комбобокс категорий
+                self._validate_current_category()
+                self._update_words_counter()
+                # Если текущая категория не изменилась, можно перезагрузить слово
+                self.load_next_word()
+        finally:
+            if dialog:
+                dialog.deleteLater()
 
     def closeEvent(self, event):
         """Вызывается при закрытии окна"""

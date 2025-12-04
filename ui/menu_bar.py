@@ -25,7 +25,7 @@ class MenuBar:
         
         # Файл -> Настройки
         settings_action = file_menu.addAction("Настройки")
-        settings_action.triggered.connect(self._placeholder_action)
+        settings_action.triggered.connect(self.main_window.open_settings)
         
         # Файл -> Выход
         exit_action = file_menu.addAction("Выход")
@@ -36,15 +36,15 @@ class MenuBar:
         
         # Правка -> Добавить слов
         add_word_action = edit_menu.addAction("Добавить слово")
-        add_word_action.triggered.connect(self._placeholder_action)
+        add_word_action.triggered.connect(self.main_window.add_new_word)
         
         # Правка -> Словарь
         dictionary_action = edit_menu.addAction("Словарь")
-        dictionary_action.triggered.connect(self._placeholder_action)
+        dictionary_action.triggered.connect(self.main_window.open_word_manager)
         
         # Правка -> Аналитика
         analytics_action = edit_menu.addAction("Аналитика")
-        analytics_action.triggered.connect(self._placeholder_action)
+        analytics_action.triggered.connect(self.main_window.show_problem_words)
         
         # Помощь
         help_menu = menu_bar.addMenu("Помощь")
