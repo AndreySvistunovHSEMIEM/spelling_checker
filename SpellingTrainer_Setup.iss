@@ -34,9 +34,9 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 Source: "dist\SpellingTrainer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{commonprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{commonprograms}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{uninstallexe}"
 
 [Code]
 // Функция для создания директории данных в AppData
