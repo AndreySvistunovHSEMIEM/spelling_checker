@@ -125,10 +125,19 @@ class SettingsDialog(QDialog):
         row += 1
         
         # Диапазон повторения ошибок
-        form_layout.addWidget(QLabel("Диапазон повторения (через N слов):"), row, 0)
+        self.repeat_range_label = QLabel("Диапазон повторения (через N слов):")
+        form_layout.addWidget(self.repeat_range_label, row, 0)
         self.repeat_range_edit = QLineEdit(self.repeat_mistakes_range)
         self.repeat_range_edit.setPlaceholderText("7-10")
         self.repeat_range_edit.setEnabled(self.repeat_mistakes)  # Включаем только если флаг активен
+        
+        # Установим начальное визуальное оформление
+        if self.repeat_mistakes:
+            self.repeat_range_edit.setStyleSheet("")
+            self.repeat_range_label.setStyleSheet("")
+        else:
+            self.repeat_range_edit.setStyleSheet("QLineEdit:disabled { color: gray; background-color: #f0f0f0; }")
+            self.repeat_range_label.setStyleSheet("QLabel:disabled { color: gray; }")
         form_layout.addWidget(self.repeat_range_edit, row, 1)
         row += 1
         
@@ -256,6 +265,17 @@ class SettingsDialog(QDialog):
     def _on_repeat_mistakes_toggled(self, is_checked):
         """Включает/выключает поле диапазона повторения"""
         self.repeat_range_edit.setEnabled(is_checked)
+        self.repeat_range_label.setEnabled(is_checked)
+        
+        # Убедимся, что поле и метка имеют правильное визуальное оформление
+        if is_checked:
+            # Поле и метка активны - обычное состояние
+            self.repeat_range_edit.setStyleSheet("")
+            self.repeat_range_label.setStyleSheet("")
+        else:
+            # Поле и метка неактивны - светло-серый цвет текста
+            self.repeat_range_edit.setStyleSheet("QLineEdit:disabled { color: gray; background-color: #f0f0f0; }")
+            self.repeat_range_label.setStyleSheet("QLabel:disabled { color: gray; }")
         
     def get_require_password_for_settings(self):
         """Возвращает настройку требования пароля"""
