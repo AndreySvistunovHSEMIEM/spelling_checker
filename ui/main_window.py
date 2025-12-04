@@ -1170,7 +1170,7 @@ class SpellingTrainer(QMainWindow):
     def _show_default_image(self):
         """Показывает изображение-заглушку"""
         try:
-            # Используем путь к default_image из media_manager, который уже настроен правильно
+            # Сначала пробуем загрузить изображение из медиа-менеджера (data directory)
             if os.path.exists(self.media_manager.default_image):
                 pixmap = create_scaled_pixmap(
                     self.media_manager.default_image,
@@ -1180,10 +1180,23 @@ class SpellingTrainer(QMainWindow):
                 if pixmap:
                     self.image_label.setPixmap(pixmap)
                     self.image_label.setText("")
-                else:
-                    self.image_label.setText("Изображение не доступно")
+                    return
             else:
-                self.image_label.setText("Изображение не доступно")
+                # Если в data directory нет, пробуем загрузить из ui/icons (base directory)
+                default_image_path = os.path.join(self.base_dir, Constants.DEFAULT_IMAGE)
+                if os.path.exists(default_image_path):
+                    pixmap = create_scaled_pixmap(
+                        default_image_path,
+                        Constants.IMAGE_WIDTH,
+                        Constants.IMAGE_HEIGHT
+                    )
+                    if pixmap:
+                        self.image_label.setPixmap(pixmap)
+                        self.image_label.setText("")
+                        return
+            
+            # Если ни один из путей не сработал, показываем текст
+            self.image_label.setText("Изображение не доступно")
         except Exception as e:
             logger.error(f"Ошибка при отображении заглушки изображения: {e}")
             self.image_label.setText("Ошибка загрузки изображения")
