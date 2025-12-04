@@ -996,8 +996,8 @@ class SpellingTrainer(QMainWindow):
         
         # Проверяем наличие слов для повторения
         if self.repeat_mistakes:
-            # Уменьшаем счетчики для всех слов на повторении
-            training_state.decrement_repeat_counters()
+            # НЕ УМЕНЬШАЕМ счетчики для всех слов на повторении при загрузке слова
+            # Счетчики уменьшаются только когда пользователь отвечает на слово
             
             # Проверяем есть ли слова готовые для повторения
             ready_words = training_state.get_words_ready_for_repetition()
@@ -1348,8 +1348,10 @@ class SpellingTrainer(QMainWindow):
                 
                 self._handle_incorrect_answer()
             
+            # УМЕНЬШАЕМ счетчики для всех слов на повторении ТОЛЬКО после ответа пользователя
+            training_state.decrement_repeat_counters()
             self.update_score()
-            self._update_words_counter()  # Обновляем счетчик слов
+            self._update_words_counter() # Обновляем счетчик слов
             self.word_repository.save_data()
             
         except Exception as e:
