@@ -82,7 +82,7 @@ class ProblemWordsDialog(QDialog):
         # Создаем метку с выравниванием по центру и увеличенным шрифтом
         no_errors_label = QLabel("Ошибок нет!")
         no_errors_label.setAlignment(Qt.AlignCenter)
-        no_errors_label.setStyleSheet("font-size: 20px; font-weight: bold; font-family: Arial; color: #66666;")  # Увеличенный шрифт
+        no_errors_label.setStyleSheet("font-size: 20px; font-weight: bold; font-family: Arial; color: #666666;")  # Увеличенный шрифт
         
         # Добавляем растяжку сверху
         layout.addStretch()
