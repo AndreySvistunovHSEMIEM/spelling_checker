@@ -59,8 +59,9 @@ class WordRepository:
             # Загружаем прогресс
             try:
                 self._load_progress_data()
-                logger.info("Прогресс загружен: score=%.2f, used_words=%d, current_category=%s",
-                        self.app_data.training_state.score,
+                logger.info("Прогресс загружен: points_score=%d, rubles_score=%.2f, used_words=%d, current_category=%s",
+                        self.app_data.training_state.points_score,
+                        self.app_data.training_state.rubles_score,
                         len(self.app_data.training_state.used_words),
                         self.app_data.training_state.current_category)
             except Exception as e:
@@ -211,9 +212,27 @@ class WordRepository:
             training_data = data.get("training_state", {})
             logger.info("Данные тренировки: %s", training_data.keys())
             
-            # Простая загрузка без сложных проверок
+            # Загружаем отдельные счеты для баллов и рублей
+            if "points_score" in training_data:
+                self.app_data.training_state.points_score = training_data.get("points_score", 0)
+            if "rubles_score" in training_data:
+                self.app_data.training_state.rubles_score = training_data.get("rubles_score", 0.0)
+            
+            # Обработка устаревшего поля score для миграции данных
             if "score" in training_data:
-                self.app_data.training_state.score = training_data.get("score", 0.0)
+                legacy_score = training_data.get("score", 0.0)
+                # Если новые поля не были загружены или равны 0, а старое поле не равно 0,
+                # то используем логику миграции из TrainingState.__post_init__
+                if (legacy_score != 0.0 and
+                    self.app_data.training_state.points_score == 0 and
+                    self.app_data.training_state.rubles_score == 0.0):
+                    # Предполагаем, что если score целое число, то это были баллы, иначе - рубли
+                    if isinstance(legacy_score, (int, float)) and legacy_score.is_integer():
+                        self.app_data.training_state.points_score = int(legacy_score)
+                    else:
+                        self.app_data.training_state.rubles_score = float(legacy_score)
+                # В любом случае, не обновляем текущее значение legacy score,
+                # так как оно устаревшее и используется только для миграции
             
             if "used_words" in training_data:
                 used_words_data = training_data.get("used_words", [])
@@ -268,8 +287,9 @@ class WordRepository:
                     )
                     self.app_data.training_state.repeat_words.append(repeat_word)
                 
-            logger.info("Прогресс загружен: score=%.2f, used_words=%d",
-                    self.app_data.training_state.score,
+            logger.info("Прогресс загружен: points_score=%d, rubles_score=%.2f, used_words=%d",
+                    self.app_data.training_state.points_score,
+                    self.app_data.training_state.rubles_score,
                     len(self.app_data.training_state.used_words))
                     
         except Exception as e:
@@ -309,9 +329,18 @@ class WordRepository:
         
         # Восстанавливаем настройки
         settings_data = data.get("settings", {})
+        
+        # Создаем AppSettings с учетом миграции старых данных
+        # Сначала пытаемся получить новые поля, если их нет - используем старые с миграцией
         self.app_data.settings = AppSettings(
+            # Старые поля для совместимости
             cost_per_word=settings_data.get("cost_per_word", Constants.DEFAULT_COST_PER_WORD),
             penalty_per_word=settings_data.get("penalty_per_word", Constants.DEFAULT_PENALTY_PER_WORD),
+            # Новые поля - приоритетные
+            points_cost_per_word=settings_data.get("points_cost_per_word", 1),
+            points_penalty_per_word=settings_data.get("points_penalty_per_word", 1),
+            rubles_cost_per_word=settings_data.get("rubles_cost_per_word", Constants.DEFAULT_COST_PER_WORD),
+            rubles_penalty_per_word=settings_data.get("rubles_penalty_per_word", Constants.DEFAULT_PENALTY_PER_WORD),
             show_correct_answer=settings_data.get("show_correct_answer", Constants.DEFAULT_SHOW_CORRECT_ANSWER),
             auto_play_enabled=settings_data.get("auto_play_enabled", Constants.AUTO_PLAY_ENABLED),
             auto_play_delay=settings_data.get("auto_play_delay", Constants.AUTO_PLAY_DELAY),
@@ -320,7 +349,8 @@ class WordRepository:
             require_password_for_settings=settings_data.get("require_password_for_settings", True),
             repeat_mistakes=settings_data.get("repeat_mistakes", True),
             repeat_mistakes_range=settings_data.get("repeat_mistakes_range", "7-10"),
-            infinite_mode=settings_data.get("infinite_mode", False)
+            infinite_mode=settings_data.get("infinite_mode", False),
+            reward_type=settings_data.get("reward_type", "rubles")
         )
         # УБРАЛИ ВЫЗОВ migrate_used_words_to_uids() из _load_settings_data
         # Т.к. на этом этапе прогресс еще не загружен
@@ -401,7 +431,8 @@ class WordRepository:
             
             progress_data = {
                 "training_state": {
-                    "score": self.app_data.training_state.score,
+                    "points_score": self.app_data.training_state.points_score,
+                    "rubles_score": self.app_data.training_state.rubles_score,
                     "used_words": list(self.app_data.training_state.used_words),
                     "current_category": self.app_data.training_state.current_category,
                     "mistakes_count": mistakes_count_dict,
@@ -428,10 +459,18 @@ class WordRepository:
                 json.dump(progress_data, f, ensure_ascii=False, indent=2)
             
             # Сохраняем настройки в settings.json
+            # Сохраняем все поля для обратной совместимости с существующими файлами
+            # В будущем можно будет упростить, сохранив только новые поля
             settings_data = {
                 "settings": {
-                    "cost_per_word": self.app_data.settings.cost_per_word,
-                    "penalty_per_word": self.app_data.settings.penalty_per_word,
+                    # УБРАНО: Сохранение старых полей cost_per_word и penalty_per_word при сохранении
+                    # Эти поля должны использоваться ТОЛЬКО для миграции старых данных при загрузке
+                    # При сохранении должны сохраняться только points_cost_per_word/points_penalty_per_word и rubles_cost_per_word/rubles_penalty_per_word
+                    # Новые поля - основные
+                    "points_cost_per_word": self.app_data.settings.points_cost_per_word,
+                    "points_penalty_per_word": self.app_data.settings.points_penalty_per_word,
+                    "rubles_cost_per_word": self.app_data.settings.rubles_cost_per_word,
+                    "rubles_penalty_per_word": self.app_data.settings.rubles_penalty_per_word,
                     "show_correct_answer": self.app_data.settings.show_correct_answer,
                     "auto_play_enabled": self.app_data.settings.auto_play_enabled,
                     "auto_play_delay": self.app_data.settings.auto_play_delay,
@@ -440,7 +479,8 @@ class WordRepository:
                     "require_password_for_settings": self.app_data.settings.require_password_for_settings,
                     "repeat_mistakes": self.app_data.settings.repeat_mistakes,
                     "repeat_mistakes_range": self.app_data.settings.repeat_mistakes_range,
-                    "infinite_mode": self.app_data.settings.infinite_mode
+                    "infinite_mode": self.app_data.settings.infinite_mode,
+                    "reward_type": self.app_data.settings.reward_type
                 }
             }
             with open(self.settings_file, "w", encoding="utf-8") as f:

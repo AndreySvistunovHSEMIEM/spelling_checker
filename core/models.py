@@ -36,8 +36,14 @@ class WordData:
 @dataclass
 class AppSettings:
     """Настройки приложения"""
+    # Старые поля для совместимости (временно сохраняем для миграции)
     cost_per_word: float = 0.5
     penalty_per_word: float = 0.25
+    # Новые отдельные поля для баллов и рублей
+    points_cost_per_word: int = 1      # Награда в баллах за слово
+    points_penalty_per_word: int = 1   # Штраф в баллах за ошибку
+    rubles_cost_per_word: float = 0.5  # Награда в рублях за слово
+    rubles_penalty_per_word: float = 0.25  # Штраф в рублях за ошибку
     show_correct_answer: bool = True
     auto_play_enabled: bool = True
     auto_play_delay: int = 500
@@ -51,11 +57,28 @@ class AppSettings:
     
     def __post_init__(self):
         """Валидация настроек после инициализации"""
+        # Выполняем миграцию старых значений к новым, если новые не заданы явно
+        self._migrate_old_values()
+        
         # Проверяем, что награда и штраф неотрицательные
+        # Эти поля используются ТОЛЬКО для миграции старых данных при загрузке
+        # и не должны обновляться при сохранении настроек
         if self.cost_per_word < 0:
             self.cost_per_word = 0.5  # Возвращаем к значению по умолчанию
         if self.penalty_per_word < 0:
             self.penalty_per_word = 0.25  # Возвращаем к значению по умолчанию
+        
+        # Валидация новых полей для баллов
+        if self.points_cost_per_word < 0:
+            self.points_cost_per_word = 1  # Возвращаем к значению по умолчанию
+        if self.points_penalty_per_word < 0:
+            self.points_penalty_per_word = 1  # Возвращаем к значению по умолчанию
+            
+        # Валидация новых полей для рублей
+        if self.rubles_cost_per_word < 0:
+            self.rubles_cost_per_word = 0.5  # Возвращаем к значению по умолчанию
+        if self.rubles_penalty_per_word < 0:
+            self.rubles_penalty_per_word = 0.25  # Возвращаем к значению по умолчанию
         
         # Проверяем задержку автовоспроизведения
         if self.auto_play_delay < 0:
@@ -79,6 +102,32 @@ class AppSettings:
             except (ValueError, AttributeError):
                 # Если формат неверный, используем значение по умолчанию
                 self.repeat_mistakes_range = "7-10"
+                
+    def _migrate_old_values(self):
+        """Миграция старых значений к новым полям"""
+        # Если новые значения не были установлены (остались по умолчанию),
+        # но есть старые значения, мигрируем старые в новые
+        # Проверяем, были ли новые значения изменены от значений по умолчанию
+        default_points_cost = 1
+        default_points_penalty = 1
+        default_rubles_cost = 0.5
+        default_rubles_penalty = 0.25
+        
+        # Если все новые поля имеют значения по умолчанию, а старые отличаются от своих значений по умолчанию,
+        # то выполняем миграцию
+        if (self.points_cost_per_word == default_points_cost and
+            self.points_penalty_per_word == default_points_penalty and
+            self.rubles_cost_per_word == default_rubles_cost and
+            self.rubles_penalty_per_word == default_rubles_penalty and
+            (self.cost_per_word != 0.5 or self.penalty_per_word != 0.25)):
+            
+            # Мигрируем старые значения в новые поля
+            # Для баллов - округляем до целых
+            self.points_cost_per_word = int(self.cost_per_word) if self.cost_per_word.is_integer() else round(self.cost_per_word)
+            self.points_penalty_per_word = int(self.penalty_per_word) if self.penalty_per_word.is_integer() else round(self.penalty_per_word)
+            # Для рублей - сохраняем как дробные
+            self.rubles_cost_per_word = self.cost_per_word
+            self.rubles_penalty_per_word = self.penalty_per_word
                 
                 
 @dataclass
@@ -121,10 +170,10 @@ class TrainingState:
         # Если score не равен 0, а другие счеты равны 0, переносим значение из старого поля
         if self.score != 0.0 and self.points_score == 0 and self.rubles_score == 0.0:
             # Предполагаем, что если score целое число, то это были баллы, иначе - рубли
-            if self.score.is_integer():
+            if isinstance(self.score, float) and self.score.is_integer():
                 self.points_score = int(self.score)
             else:
-                self.rubles_score = self.score
+                self.rubles_score = float(self.score)
             # Обнуляем старое поле
             self.score = 0.0
     

@@ -99,9 +99,22 @@ class SpellingTrainer(QMainWindow):
         
         # Загружаем настройки из репозитория
         settings = self.word_repository.app_data.settings
-        self.cost_per_word = settings.cost_per_word
-        self.penalty_per_word = settings.penalty_per_word
+        # Инициализируем reward_type до его использования
+        self.reward_type = settings.reward_type
+        # Используем новые поля в зависимости от типа награды
+        if self.reward_type == "points":
+            self.cost_per_word = settings.points_cost_per_word
+            self.penalty_per_word = settings.points_penalty_per_word
+        else:  # rubles
+            self.cost_per_word = settings.rubles_cost_per_word
+            self.penalty_per_word = settings.rubles_penalty_per_word
         self.show_correct_answer = settings.show_correct_answer
+        self.auto_play_enabled = settings.auto_play_enabled
+        self.auto_play_delay = settings.auto_play_delay
+        self.require_password_for_settings = settings.require_password_for_settings
+        self.repeat_mistakes = settings.repeat_mistakes
+        self.repeat_mistakes_range = settings.repeat_mistakes_range
+        self.infinite_mode = settings.infinite_mode
         self.auto_play_enabled = settings.auto_play_enabled
         self.auto_play_delay = settings.auto_play_delay
         self.music_enabled = settings.music_enabled
@@ -109,7 +122,6 @@ class SpellingTrainer(QMainWindow):
         self.repeat_mistakes = settings.repeat_mistakes
         self.repeat_mistakes_range = settings.repeat_mistakes_range
         self.infinite_mode = settings.infinite_mode
-        self.reward_type = settings.reward_type
         self.answer_checked = False
         
         # Таймер для автоматического перехода
@@ -1242,10 +1254,10 @@ class SpellingTrainer(QMainWindow):
                 # Обновляем счёт в зависимости от текущего типа награды
                 current_score = training_state.get_current_score(self.reward_type)
                 if self.reward_type == "points":
-                    new_score = current_score + int(self.cost_per_word)
+                    new_score = current_score + self.word_repository.app_data.settings.points_cost_per_word
                     training_state.set_current_score(new_score, self.reward_type)
                 else:
-                    new_score = current_score + self.cost_per_word
+                    new_score = current_score + self.word_repository.app_data.settings.rubles_cost_per_word
                     training_state.set_current_score(new_score, self.reward_type)
                 
                 if current_category:
@@ -1270,10 +1282,10 @@ class SpellingTrainer(QMainWindow):
                 # Неправильный ответ - ОБНОВЛЯЕМ ТОЛЬКО ТЕКУЩИЙ СЧЁТ
                 current_score = training_state.get_current_score(self.reward_type)
                 if self.reward_type == "points":
-                    new_score = current_score - int(self.penalty_per_word)
+                    new_score = current_score - self.word_repository.app_data.settings.points_penalty_per_word
                     training_state.set_current_score(new_score, self.reward_type)
                 else:
-                    new_score = current_score - self.penalty_per_word
+                    new_score = current_score - self.word_repository.app_data.settings.rubles_penalty_per_word
                     training_state.set_current_score(new_score, self.reward_type)
                 
                 if current_category:
@@ -1463,11 +1475,22 @@ class SpellingTrainer(QMainWindow):
         """Открывает диалог настроек (внутренний метод)"""
         dialog = None
         try:
-            dialog = SettingsDialog(self, self.cost_per_word, self.penalty_per_word,
-                                  self.show_correct_answer, self.auto_play_enabled,
-                                  self.auto_play_delay, self.require_password_for_settings,
-                                  self.repeat_mistakes, self.repeat_mistakes_range,
-                                  self.infinite_mode, self.word_repository.app_data.settings.reward_type)
+            settings = self.word_repository.app_data.settings
+            dialog = SettingsDialog(self,
+                                  settings.cost_per_word,
+                                  settings.penalty_per_word,
+                                  self.show_correct_answer,
+                                  self.auto_play_enabled,
+                                  self.auto_play_delay,
+                                  self.require_password_for_settings,
+                                  self.repeat_mistakes,
+                                  self.repeat_mistakes_range,
+                                  self.infinite_mode,
+                                  settings.reward_type,
+                                  settings.points_cost_per_word,
+                                  settings.points_penalty_per_word,
+                                  settings.rubles_cost_per_word,
+                                  settings.rubles_penalty_per_word)
             if dialog.exec():
                 # Сохраняем настройки в репозиторий
                 self.cost_per_word = dialog.get_cost_per_word()
@@ -1485,8 +1508,23 @@ class SpellingTrainer(QMainWindow):
                 reward_type = dialog.get_reward_type()
                 
                 # Обновляем настройки в репозитории
-                self.word_repository.app_data.settings.cost_per_word = self.cost_per_word
-                self.word_repository.app_data.settings.penalty_per_word = self.penalty_per_word
+                # Синхронизируем старые и новые поля для обеспечения совместимости
+                # Получаем новые значения из диалога
+                points_cost = dialog.points_cost_per_word
+                points_penalty = dialog.points_penalty_per_word
+                rubles_cost = dialog.rubles_cost_per_word
+                rubles_penalty = dialog.rubles_penalty_per_word
+                
+                # УБРАНО: Обновление старых полей cost_per_word и penalty_per_word при сохранении
+                # Эти поля должны использоваться ТОЛЬКО для миграции старых данных при загрузке
+                # При сохранении должны обновляться только points_cost_per_word/points_penalty_per_word и rubles_cost_per_word/rubles_penalty_per_word
+                
+                # Обновляем новые отдельные настройки (важно: сохраняем оба набора значений независимо)
+                self.word_repository.app_data.settings.points_cost_per_word = points_cost
+                self.word_repository.app_data.settings.points_penalty_per_word = points_penalty
+                self.word_repository.app_data.settings.rubles_cost_per_word = rubles_cost
+                self.word_repository.app_data.settings.rubles_penalty_per_word = rubles_penalty
+                
                 self.word_repository.app_data.settings.show_correct_answer = self.show_correct_answer
                 self.word_repository.app_data.settings.auto_play_enabled = True
                 self.word_repository.app_data.settings.auto_play_delay = 500
@@ -1500,6 +1538,14 @@ class SpellingTrainer(QMainWindow):
                 
                 # ОБНОВЛЯЕМ ТИП НАГРАДЫ В ОСНОВНОМ ОКНЕ
                 self.reward_type = reward_type
+                
+                # ОБНОВЛЯЕМ ОСНОВНЫЕ ЗНАЧЕНИЯ НАГРАДЫ И ШТРАФА В ЗАВИСИМОСТИ ОТ ТИПА НАГРАДЫ
+                if reward_type == "points":
+                    self.cost_per_word = points_cost
+                    self.penalty_per_word = points_penalty
+                else:  # rubles
+                    self.cost_per_word = rubles_cost
+                    self.penalty_per_word = rubles_penalty
                 
                 # ОБНОВЛЯЕМ СЧЕТЧИК СЛОВ ДЛЯ ОТОБРАЖЕНИЯ ∞
                 self._update_words_counter()
