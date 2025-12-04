@@ -116,13 +116,7 @@ class SpellingTrainer(QMainWindow):
         self.repeat_mistakes = settings.repeat_mistakes
         self.repeat_mistakes_range = settings.repeat_mistakes_range
         self.infinite_mode = settings.infinite_mode
-        self.auto_play_enabled = settings.auto_play_enabled
-        self.auto_play_delay = settings.auto_play_delay
         self.music_enabled = settings.music_enabled
-        self.require_password_for_settings = settings.require_password_for_settings
-        self.repeat_mistakes = settings.repeat_mistakes
-        self.repeat_mistakes_range = settings.repeat_mistakes_range
-        self.infinite_mode = settings.infinite_mode
         self.answer_checked = False
         
         # Таймер для автоматического перехода

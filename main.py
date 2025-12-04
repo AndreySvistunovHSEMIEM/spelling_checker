@@ -2,7 +2,6 @@
 import logging
 import sys
 import os
-import threading
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QIcon, QColor

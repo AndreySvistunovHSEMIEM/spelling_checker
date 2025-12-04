@@ -13,7 +13,7 @@ from PySide6.QtCore import Qt, QSize
 
 from core.constants import Constants
 from core.models import WordData
-from utils.helpers import create_dialog, show_silent_message
+from utils.helpers import show_silent_message
 from ui.dialogs.import_export.data_dialogs import BulkImportDialog, ExportCategoriesDialog
 
 
@@ -259,11 +259,6 @@ class WordManagerDialog(QDialog):
         if dialog.exec():
             self._refresh_words_tree()
             # Сообщение теперь показывается внутри диалога
-        
-    def _on_category_filter_changed(self, category_filter):
-        """Обработчик изменения фильтра категорий"""
-        self.current_category_filter = category_filter
-        self._refresh_words_tree()
         
     def _bulk_import_words(self):
         """Массовый импорт слов из папки"""

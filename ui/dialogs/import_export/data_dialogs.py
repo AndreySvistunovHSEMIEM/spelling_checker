@@ -13,7 +13,7 @@ from PySide6.QtCore import Qt, QSize
 
 from core.constants import Constants
 from core.models import WordData
-from utils.helpers import create_dialog, show_silent_message
+from utils.helpers import show_silent_message
 
 
 logger = logging.getLogger(__name__)

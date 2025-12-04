@@ -69,27 +69,3 @@ def create_scaled_pixmap(image_path, width, height):
         pass
     
     return None
-
-def create_dialog(parent, title, width, height):
-    """
-    Создает стандартное диалоговое окно
-    
-    Args:
-        parent: Родительское окно
-        title: Заголовок окна
-        width: Ширина окна
-        height: Высота окна
-        
-    Returns:
-        Настроенное диалоговое окно
-    """
-    dialog = QDialog(parent)
-    dialog.setWindowTitle(title)
-    dialog.setGeometry(200, 200, width, height)
-    center_window(parent, dialog)
-    
-    # Устанавливаем иконку
-    icon_path = os.path.join(parent.base_dir, "app_icon.png")
-    set_window_icon(dialog, icon_path)
-    
-    return dialog
