@@ -109,6 +109,7 @@ class SpellingTrainer(QMainWindow):
         self.repeat_mistakes = settings.repeat_mistakes
         self.repeat_mistakes_range = settings.repeat_mistakes_range
         self.infinite_mode = settings.infinite_mode
+        self.reward_type = settings.reward_type
         self.answer_checked = False
         
         # Таймер для автоматического перехода
@@ -178,10 +179,11 @@ class SpellingTrainer(QMainWindow):
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
 
-        # ЛЕВАЯ ЧАСТЬ: управление счетом (оставляем как есть)
+        # ЛЕВАЯ ЧАСТЬ: управление счетом (единый счёт с переключением типа)
         score_layout = QHBoxLayout()
         score_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Рамка для счёта (баллы или рубли)
         score_frame = QFrame()
         score_frame_layout = QHBoxLayout()
         score_frame_layout.setContentsMargins(10, 1, 10, 1)
@@ -212,22 +214,27 @@ class SpellingTrainer(QMainWindow):
             self.reset_score_btn.setToolTip("Обнулить счёт")
         else:
             self.reset_score_btn.setText("⟲")
-
+        
         self.reset_score_btn.clicked.connect(self.reset_score)
         self.reset_score_btn.setFixedSize(24, 24)
 
-        # Метка счёта
+        # Метка счёта (баллы или рубли в зависимости от настроек)
         training_state = self.word_repository.app_data.training_state
-        self.score_label = QLabel(f"{training_state.score:.2f} руб.")
+        current_score = training_state.get_current_score(self.reward_type)
+        if self.reward_type == "points":
+            score_text = f"{int(current_score)} балл"
+        else:
+            score_text = f"{current_score:.2f} руб."
+        self.score_label = QLabel(score_text)
         score_font = QFont()
         score_font.setPointSize(12)
         score_font.setBold(True)
         self.score_label.setFont(score_font)
         self.score_label.setAlignment(Qt.AlignCenter)
         self.score_label.setMinimumWidth(80)
-        self.score_label.setMaximumWidth(200)
+        self.score_label.setMaximumWidth(120)
 
-        # Добавляем кнопку и счёт в одну рамку
+        # Добавляем кнопку и счёт в рамку
         score_frame_layout.addWidget(self.reset_score_btn)
         score_frame_layout.addWidget(self.score_label)
 
@@ -879,12 +886,17 @@ class SpellingTrainer(QMainWindow):
             self.audio_btn.setEnabled(False)
 
     def reset_score(self):
-        """Обнуление общего счёта"""
+        """Обнуление общего счёта (для совместимости)"""
+        # Вызываем сброс для текущего типа награды
         training_state = self.word_repository.app_data.training_state
-        training_state.reset_score()
+        training_state.reset_score(self.reward_type)
         self.update_score()
         self._update_words_counter()
         self.word_repository.save_data()
+        
+        # Показываем сообщение о сбросе текущего счёта
+        reward_unit = "балл" if self.reward_type == "points" else "руб."
+        show_silent_message(self, "Сброс счёта", f"Счёт в {reward_unit} обнулён!")
         
     def _validate_current_category(self):
         """Проверяет и исправляет текущую категорию если она не существует"""
@@ -1226,8 +1238,16 @@ class SpellingTrainer(QMainWindow):
                 training_state.used_words.add(self.current_word_data.uid)
             
             if is_correct:
-                # Правильный ответ - ОБЩИЙ счет
-                training_state.score += self.cost_per_word
+                # Правильный ответ - ОБНОВЛЯЕМ ТОЛЬКО ТЕКУЩИЙ СЧЁТ
+                # Обновляем счёт в зависимости от текущего типа награды
+                current_score = training_state.get_current_score(self.reward_type)
+                if self.reward_type == "points":
+                    new_score = current_score + int(self.cost_per_word)
+                    training_state.set_current_score(new_score, self.reward_type)
+                else:
+                    new_score = current_score + self.cost_per_word
+                    training_state.set_current_score(new_score, self.reward_type)
+                
                 if current_category:
                     training_state.increment_correct(current_category)
                     
@@ -1247,8 +1267,15 @@ class SpellingTrainer(QMainWindow):
                 
                 self._handle_correct_answer()
             else:
-                # Неправильный ответ - ОБЩИЙ счет
-                training_state.score -= self.penalty_per_word
+                # Неправильный ответ - ОБНОВЛЯЕМ ТОЛЬКО ТЕКУЩИЙ СЧЁТ
+                current_score = training_state.get_current_score(self.reward_type)
+                if self.reward_type == "points":
+                    new_score = current_score - int(self.penalty_per_word)
+                    training_state.set_current_score(new_score, self.reward_type)
+                else:
+                    new_score = current_score - self.penalty_per_word
+                    training_state.set_current_score(new_score, self.reward_type)
+                
                 if current_category:
                     training_state.increment_incorrect(current_category)
                     training_state.increment_mistake(current_category, self.current_word_data.word)
@@ -1343,7 +1370,14 @@ class SpellingTrainer(QMainWindow):
     def update_score(self):
         """Обновление отображения общего счёта"""
         training_state = self.word_repository.app_data.training_state
-        self.score_label.setText(f"{training_state.score:.2f} руб.")
+        
+        # Обновляем отображение счёта в зависимости от текущего типа награды
+        current_score = training_state.get_current_score(self.reward_type)
+        if self.reward_type == "points":
+            score_text = f"{int(current_score)} балл"
+        else:
+            score_text = f"{current_score:.2f} руб."
+        self.score_label.setText(score_text)
         
         # Сохраняем данные при обновлении счёта для обеспечения сохранности
         self.word_repository.save_data()
@@ -1429,11 +1463,11 @@ class SpellingTrainer(QMainWindow):
         """Открывает диалог настроек (внутренний метод)"""
         dialog = None
         try:
-            dialog = SettingsDialog(self, self.cost_per_word, self.penalty_per_word, 
-                                  self.show_correct_answer, self.auto_play_enabled, 
+            dialog = SettingsDialog(self, self.cost_per_word, self.penalty_per_word,
+                                  self.show_correct_answer, self.auto_play_enabled,
                                   self.auto_play_delay, self.require_password_for_settings,
-                                  self.repeat_mistakes, self.repeat_mistakes_range, 
-                                  self.infinite_mode)
+                                  self.repeat_mistakes, self.repeat_mistakes_range,
+                                  self.infinite_mode, self.word_repository.app_data.settings.reward_type)
             if dialog.exec():
                 # Сохраняем настройки в репозиторий
                 self.cost_per_word = dialog.get_cost_per_word()
@@ -1448,6 +1482,7 @@ class SpellingTrainer(QMainWindow):
                 self.repeat_mistakes = dialog.get_repeat_mistakes()
                 self.repeat_mistakes_range = dialog.get_repeat_mistakes_range()
                 self.infinite_mode = dialog.get_infinite_mode()
+                reward_type = dialog.get_reward_type()
                 
                 # Обновляем настройки в репозитории
                 self.word_repository.app_data.settings.cost_per_word = self.cost_per_word
@@ -1461,12 +1496,19 @@ class SpellingTrainer(QMainWindow):
                 self.word_repository.app_data.settings.repeat_mistakes = self.repeat_mistakes
                 self.word_repository.app_data.settings.repeat_mistakes_range = self.repeat_mistakes_range
                 self.word_repository.app_data.settings.infinite_mode = self.infinite_mode
+                self.word_repository.app_data.settings.reward_type = reward_type
+                
+                # ОБНОВЛЯЕМ ТИП НАГРАДЫ В ОСНОВНОМ ОКНЕ
+                self.reward_type = reward_type
                 
                 # ОБНОВЛЯЕМ СЧЕТЧИК СЛОВ ДЛЯ ОТОБРАЖЕНИЯ ∞
                 self._update_words_counter()
                 
                 # ОБНОВЛЯЕМ КОМБОБОКС КАТЕГОРИЙ ЕСЛИ НУЖНО ↓
                 self._validate_current_category()
+                
+                # ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ СЧЁТА ПРИ СМЕНЕ ТИПА НАГРАДЫ
+                self.update_score()
                 
                 # Сохраняем данные один раз в конце
                 self.word_repository.save_data()

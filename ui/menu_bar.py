@@ -20,7 +20,7 @@ class MenuBar:
         """Создание меню бара с пунктами File, Edit и Help"""
         menu_bar = self.main_window.menuBar()
         
-        # Файл menu
+        # Файл
         file_menu = menu_bar.addMenu("Файл")
         
         # Файл -> Настройки
@@ -31,7 +31,7 @@ class MenuBar:
         exit_action = file_menu.addAction("Выход")
         exit_action.triggered.connect(self.main_window.close)
         
-        # Правка menu
+        # Правка
         edit_menu = menu_bar.addMenu("Правка")
         
         # Правка -> Добавить слов

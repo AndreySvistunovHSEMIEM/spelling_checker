@@ -12,9 +12,9 @@ from utils.helpers import show_silent_message
 class SettingsDialog(QDialog):
     """Диалог настроек"""
     
-    def __init__(self, parent, cost_per_word, penalty_per_word, show_correct_answer, 
+    def __init__(self, parent, cost_per_word, penalty_per_word, show_correct_answer,
                  auto_play_enabled, auto_play_delay, require_password_for_settings,
-                 repeat_mistakes, repeat_mistakes_range, infinite_mode):
+                 repeat_mistakes, repeat_mistakes_range, infinite_mode, reward_type="rubles"):
         super().__init__(parent)
         self.cost_per_word = cost_per_word
         self.penalty_per_word = penalty_per_word
@@ -25,6 +25,19 @@ class SettingsDialog(QDialog):
         self.repeat_mistakes = repeat_mistakes
         self.repeat_mistakes_range = repeat_mistakes_range
         self.infinite_mode = infinite_mode
+        self.reward_type = reward_type
+        
+        # Store separate values for points and rubles
+        if reward_type == "points":
+            self.cost_per_word_points = cost_per_word
+            self.penalty_per_word_points = penalty_per_word
+            self.cost_per_word_rubles = 0.5  # default value
+            self.penalty_per_word_rubles = 0.25  # default value
+        else:  # rubles
+            self.cost_per_word_rubles = cost_per_word
+            self.penalty_per_word_rubles = penalty_per_word
+            self.cost_per_word_points = 1  # default value
+            self.penalty_per_word_points = 1  # default value
         
         self.setWindowTitle("Настройки")
         self.setModal(True)
@@ -44,15 +57,42 @@ class SettingsDialog(QDialog):
         
         row = 0
         
+        # Тип награды
+        form_layout.addWidget(QLabel("Тип награды:"), row, 0)
+        self.reward_type_combo = QComboBox()
+        self.reward_type_combo.addItems(["рубли", "баллы"])
+        self.reward_type_combo.setCurrentText("рубли" if self.reward_type == "rubles" else "баллы")
+        form_layout.addWidget(self.reward_type_combo, row, 1)
+        row += 1
+        
         # Награда за слово
-        form_layout.addWidget(QLabel("Награда за слово (руб):"), row, 0)
-        self.reward_edit = QLineEdit(str(self.cost_per_word))
+        reward_unit = "(балл)" if self.reward_type == "points" else "(руб)"
+        self.reward_label = QLabel(f"Награда за слово {reward_unit}:")
+        form_layout.addWidget(self.reward_label, row, 0)
+        if self.reward_type == "points":
+            self.reward_edit = QLineEdit(str(self.cost_per_word_points))
+        else:
+            # Format rubles value to remove unnecessary decimal places if it's an integer
+            rubles_value = self.cost_per_word_rubles
+            if rubles_value.is_integer():
+                self.reward_edit = QLineEdit(str(int(rubles_value)))
+            else:
+                self.reward_edit = QLineEdit(str(rubles_value))
         form_layout.addWidget(self.reward_edit, row, 1)
         row += 1
         
         # Штраф за ошибку
-        form_layout.addWidget(QLabel("Штраф за ошибку (руб):"), row, 0)
-        self.penalty_edit = QLineEdit(str(self.penalty_per_word))
+        self.penalty_label = QLabel(f"Штраф за ошибку {reward_unit}:")
+        form_layout.addWidget(self.penalty_label, row, 0)
+        if self.reward_type == "points":
+            self.penalty_edit = QLineEdit(str(self.penalty_per_word_points))
+        else:
+            # Format rubles value to remove unnecessary decimal places if it's an integer
+            rubles_value = self.penalty_per_word_rubles
+            if rubles_value.is_integer():
+                self.penalty_edit = QLineEdit(str(int(rubles_value)))
+            else:
+                self.penalty_edit = QLineEdit(str(rubles_value))
         form_layout.addWidget(self.penalty_edit, row, 1)
         row += 1
         
@@ -110,12 +150,26 @@ class SettingsDialog(QDialog):
         button_layout.addWidget(cancel_btn)
         
         layout.addLayout(button_layout)
+        
+        # Connect reward type change signal
+        self.reward_type_combo.currentTextChanged.connect(self._on_reward_type_changed)
     
     def _save_settings(self):
         """Сохранение настроек"""
         try:
-            cost = float(self.reward_edit.text())
-            penalty = float(self.penalty_edit.text())
+            # Проверяем тип награды и валидируем соответствующим образом
+            # Поддерживаем запятую как десятичный разделитель
+            reward_text = self.reward_edit.text().replace(',', '.')
+            penalty_text = self.penalty_edit.text().replace(',', '.')
+            
+            if self.reward_type == "points":
+                # Для баллов используем целые числа
+                cost = int(float(reward_text))  # Двойное преобразование для обработки строк вроде "5.0"
+                penalty = int(float(penalty_text))
+            else:
+                # Для рублей используем дробные числа
+                cost = float(reward_text)
+                penalty = float(penalty_text)
             
             # Валидация значений
             if cost < 0:
@@ -149,6 +203,8 @@ class SettingsDialog(QDialog):
             self.repeat_mistakes = self.repeat_mistakes_checkbox.isChecked()
             self.repeat_mistakes_range = repeat_range if self.repeat_mistakes else "7-10"
             self.infinite_mode = self.infinite_mode_checkbox.isChecked()
+            # Тип награды уже обновляется в _on_reward_type_changed, используем текущее значение
+            # self.reward_type = "rubles" if self.reward_type_combo.currentText() == "рубли" else "points"
             
             self.accept()
         except ValueError as e:
@@ -197,6 +253,10 @@ class SettingsDialog(QDialog):
         """Возвращает настройку бесконечного режима"""
         return self.infinite_mode
         
+    def get_reward_type(self):
+        """Возвращает тип награды"""
+        return self.reward_type
+        
     def _on_require_password_toggled(self, is_checked):
         """Обрабатывает снятие флажка требования пароля"""
         if not is_checked:
@@ -217,10 +277,51 @@ class SettingsDialog(QDialog):
                 else:
                     # Пароль неверный - возвращаем флажок
                     self.require_password_checkbox.setChecked(True)
-                    QMessageBox.warning(self, "Ошибка", "Неверный пароль!")
-            else:
-                # Пользователь отменил - возвращаем флажок
-                self.require_password_checkbox.setChecked(True)
+                    
+    def _on_reward_type_changed(self, text):
+        """Обновляет поля ввода и метки при изменении типа награды"""
+        new_reward_type = "points" if text == "баллы" else "rubles"
+        
+        # Сохраняем текущие значения из полей ввода в соответствующую переменную
+        try:
+            current_reward = float(self.reward_edit.text().replace(',', '.'))
+            current_penalty = float(self.penalty_edit.text().replace(',', '.'))
+            
+            if self.reward_type == "points":
+                self.cost_per_word_points = int(current_reward)
+                self.penalty_per_word_points = int(current_penalty)
+            else:  # rubles
+                self.cost_per_word_rubles = float(current_reward)
+                self.penalty_per_word_rubles = float(current_penalty)
+        except ValueError:
+            # Если не удается преобразовать, пропускаем сохранение
+            pass
+        
+        # Обновляем метки
+        reward_unit = "(балл)" if new_reward_type == "points" else "(руб)"
+        self.reward_label.setText(f"Награда за слово {reward_unit}:")
+        self.penalty_label.setText(f"Штраф за ошибку {reward_unit}:")
+        
+        # Устанавливаем значения из соответствующих переменных в поля ввода
+        if new_reward_type == "points":
+            self.reward_edit.setText(str(self.cost_per_word_points))
+            self.penalty_edit.setText(str(self.penalty_per_word_points))
+        else:  # rubles
+            # Проверяем, нужно ли отображать значение с запятой
+            rubles_reward_str = str(self.cost_per_word_rubles)
+            rubles_penalty_str = str(self.penalty_per_word_rubles)
+            
+            # Если значения содержат только .0, отображаем как целые числа
+            if self.cost_per_word_rubles.is_integer():
+                rubles_reward_str = str(int(self.cost_per_word_rubles))
+            if self.penalty_per_word_rubles.is_integer():
+                rubles_penalty_str = str(int(self.penalty_per_word_rubles))
+                
+            self.reward_edit.setText(rubles_reward_str)
+            self.penalty_edit.setText(rubles_penalty_str)
+        
+        # Обновляем внутреннюю переменную типа награды
+        self.reward_type = new_reward_type
 
 
 __all__ = ['SettingsDialog']

@@ -47,6 +47,7 @@ class AppSettings:
     repeat_mistakes: bool = True               # Новое: повторять ошибки
     repeat_mistakes_range: str = "7-10"        # Новое: диапазон повторения
     infinite_mode: bool = False                # Новое: бесконечный режим
+    reward_type: str = "rubles"                # Новое: тип награды ("rubles" или "points")
     
     def __post_init__(self):
         """Валидация настроек после инициализации"""
@@ -100,7 +101,9 @@ class RepeatWordData:
 @dataclass
 class TrainingState:
     """Состояние тренировки"""
-    score: float = 0.0
+    score: float = 0.0  # Legacy field for backward compatibility
+    points_score: int = 0  # Separate points account
+    rubles_score: float = 0.0  # Separate rubles account
     used_words: Set[str] = field(default_factory=set)
     current_word: WordData = None
     current_category: str = ""
@@ -112,6 +115,18 @@ class TrainingState:
     incorrect_answers_count: Dict[str, int] = field(default_factory=dict)
     # ДОБАВЛЯЕМ ПОЛЕ ДЛЯ СЛОВ НА ПОВТОРЕНИИ ↓
     repeat_words: List[RepeatWordData] = field(default_factory=list)
+    
+    def __post_init__(self):
+        """Инициализация после создания объекта"""
+        # Если score не равен 0, а другие счеты равны 0, переносим значение из старого поля
+        if self.score != 0.0 and self.points_score == 0 and self.rubles_score == 0.0:
+            # Предполагаем, что если score целое число, то это были баллы, иначе - рубли
+            if self.score.is_integer():
+                self.points_score = int(self.score)
+            else:
+                self.rubles_score = self.score
+            # Обнуляем старое поле
+            self.score = 0.0
     
     def increment_correct(self, category: str):
         """Увеличивает счётчик правильных ответов категории"""
@@ -222,10 +237,27 @@ class TrainingState:
                         repeat_word.next_show_after = random.randint(7, 10)
                 break
     
-    def reset_score(self):
+    def reset_score(self, reward_type: str = "rubles"):
         """Сброс общего счёта"""
-        self.score = 0.0
+        if reward_type == "points":
+            self.points_score = 0
+        else:  # rubles or default
+            self.rubles_score = 0.0
         # НЕ сбрасываем счетчики правильных/неправильных ответов при обнулении счета
+
+    def get_current_score(self, reward_type: str = "rubles") -> float:
+        """Получение текущего счёта в зависимости от типа награды"""
+        if reward_type == "points":
+            return float(self.points_score)
+        else:  # rubles or default
+            return self.rubles_score
+
+    def set_current_score(self, value: float, reward_type: str = "rubles"):
+        """Установка текущего счёта в зависимости от типа награды"""
+        if reward_type == "points":
+            self.points_score = int(value)
+        else:  # rubles or default
+            self.rubles_score = value
 
 
 @dataclass
