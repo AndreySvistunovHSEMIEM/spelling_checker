@@ -2,6 +2,7 @@
 import os
 import random
 import logging
+import sys  # Add the missing sys import for checking frozen status
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QLineEdit, QComboBox,
                                QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog)
@@ -29,6 +30,23 @@ class SpellingTrainer(QMainWindow):
         super().__init__()
         self.setWindowTitle("Orfocode")
         self.setGeometry(100, 100, *Constants.DEFAULT_WINDOW_SIZE)
+        
+        # Устанавливаем иконку окна
+        # Иконка всегда будет в корне как app_icon.ico
+        # Для скомпилированного приложения (PyInstaller) ищем в _internal папке
+        if getattr(sys, 'frozen', False):
+            # Приложение запущено из PyInstaller бандла
+            application_path = os.path.dirname(sys.executable)
+            icon_path = os.path.join(application_path, Constants.APP_ICON)
+            # Если не нашли в корне, пробуем в _internal
+            if not os.path.exists(icon_path):
+                icon_path = os.path.join(application_path, "_internal", Constants.APP_ICON)
+        else:
+            # Режим разработки
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), Constants.APP_ICON)
+        
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         
         # Получаем абсолютный путь к папке с программой
         self.base_dir = os.path.dirname(os.path.abspath(__file__))

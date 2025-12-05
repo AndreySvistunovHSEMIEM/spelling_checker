@@ -35,7 +35,8 @@ pyinstaller ^
  --onedir ^
  --windowed ^
  --name "Orfocode" ^
- --icon "app_icon.png" ^
+ --icon "app_icon.ico" ^
+ --add-data "app_icon.ico;." ^
  --add-data "ui;ui" ^
  --add-data "core;core" ^
  --add-data "utils;utils" ^

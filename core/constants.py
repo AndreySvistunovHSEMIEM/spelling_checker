@@ -39,7 +39,7 @@ class Constants:
     AUDIO_FOLDER = "audio"
     MUSIC_FOLDER = "music"
     DEFAULT_IMAGE = "icons/sound_no_image.png"
-    APP_ICON = "app_icon.png"
+    APP_ICON = "app_icon.ico"
     CORRECT_SOUND = "correct.mp3"
     INCORRECT_SOUND = "incorrect.mp3"
     

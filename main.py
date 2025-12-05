@@ -44,7 +44,17 @@ def main():
     app.setPalette(palette)
     
     # Устанавливаем иконку приложения для всех окон
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.png")
+    if getattr(sys, 'frozen', False):
+        # Приложение запущено из PyInstaller бандла
+        application_path = os.path.dirname(sys.executable)
+        icon_path = os.path.join(application_path, "app_icon.ico")
+        # Если не нашли в корне, пробуем в _internal
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(application_path, "_internal", "app_icon.ico")
+    else:
+        # Режим разработки
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.ico")
+    
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
@@ -55,13 +65,12 @@ def main():
         # Запускаем главный цикл приложения
         return_code = app.exec()
         
-        # Корректно завершаем приложение
-        sys.exit(return_code)
-        
+        return return_code  # Return the code instead of exiting here
         
     except Exception as e:
         logger.exception("Критическая ошибка запуска приложения: %s", e)
-        sys.exit(1)
+        return 1  # Return error code instead of sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    return_code = main()
+    sys.exit(return_code)
