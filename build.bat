@@ -39,6 +39,9 @@ pyinstaller ^
  --add-data "ui;ui" ^
  --add-data "core;core" ^
  --add-data "utils;utils" ^
+ --add-data "core/words.json;core" ^
+ --add-data "core/progress.json;core" ^
+ --add-data "core/settings.json;core" ^
  --hidden-import PySide6.QtCore ^
  --hidden-import PySide6.QtGui ^
  --hidden-import PySide6.QtWidgets ^

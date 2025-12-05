@@ -900,3 +900,9 @@ ui/dialogs/statistics/__pycache__/statistics_dialogs.cpython-313.pyc
 ui/dialogs/word_management/__pycache__/__init__.cpython-313.pyc
 ui/dialogs/word_management/__pycache__/word_dialogs.cpython-313.pyc
 ui/main_window.py
+build
+dist
+Output
+venv
+SpellingTrainer.spec
+Orfokod.spec
