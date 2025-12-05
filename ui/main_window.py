@@ -27,7 +27,7 @@ class SpellingTrainer(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Тренажёр орфографии")
+        self.setWindowTitle("Orfocode")
         self.setGeometry(100, 100, *Constants.DEFAULT_WINDOW_SIZE)
         
         # Получаем абсолютный путь к папке с программой

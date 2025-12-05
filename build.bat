@@ -2,13 +2,13 @@
 cd /d "%~dp0"
 
 echo ============================
-echo   SpellingTrainer BUILD
+echo   Orfocode BUILD
 echo ============================
 
 echo === CLEAN OLD BUILDS ===
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
-del /q SpellingTrainer.spec 2>nul
+del /q Orfocode.spec 2>nul
 
 echo === CREATE/ACTIVATE VENV ===
 if not exist venv (
@@ -34,7 +34,7 @@ pyinstaller ^
  --noconfirm ^
  --onedir ^
  --windowed ^
- --name "SpellingTrainer" ^
+ --name "Orfocode" ^
  --icon "app_icon.png" ^
  --add-data "ui;ui" ^
  --add-data "core;core" ^
@@ -54,7 +54,7 @@ pyinstaller ^
 
 echo.
 echo === DONE! ===
-echo Installer build directory: dist\SpellingTrainer\
-echo Executable: dist\SpellingTrainer\SpellingTrainer.exe
+echo Installer build directory: dist\Orfocode\
+echo Executable: dist\Orfocode\Orfocode.exe
 echo.
 pause

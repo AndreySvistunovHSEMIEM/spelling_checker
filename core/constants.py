@@ -172,7 +172,7 @@ class Constants:
         if getattr(sys, 'frozen', False):
             # Режим exe: сохраняем в AppData
             appdata = Path(os.environ.get('APPDATA', Path.home()))
-            data_dir = appdata / "SpellingTrainer"
+            data_dir = appdata / "Orfocode"
             data_dir.mkdir(exist_ok=True)
             # Выполняем миграцию, если нужно
             Constants._migrate_data_if_needed(str(data_dir))

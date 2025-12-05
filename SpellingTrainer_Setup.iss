@@ -1,8 +1,8 @@
-; Установщик для Spelling Trainer
-#define MyAppName "Spelling Trainer"
+; Установщик для Orfocode
+#define MyAppName "Orfocode"
 #define MyAppVersion "0.1"
 #define MyAppPublisher "Rothgust"
-#define MyAppExeName "SpellingTrainer.exe"
+#define MyAppExeName "Orfocode.exe"
 
 [Setup]
 AppId={{846A69CD-FFE3-4A39-A7F3-49A9974E6DBF}}
@@ -13,7 +13,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={commonpf32}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=.\Output
-OutputBaseFilename=SpellingTrainer_Setup
+OutputBaseFilename=Orfocode_Setup
 SetupIconFile=app_icon.ico
 Compression=lzma2
 SolidCompression=yes
@@ -31,18 +31,18 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 
 [Files]
 ; Копируем все файлы из директории сборки
-Source: "dist\SpellingTrainer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\Orfocode\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{uninstallexe}"
+Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{uninstallexe}"; Comment: "Удалить {#MyAppName}"
 
 [Code]
 // Функция для создания директории данных в AppData
 function AppDataPath(): string;
 begin
-  Result := ExpandConstant('{userappdata}\SpellingTrainer');
+  Result := ExpandConstant('{userappdata}\Orfocode');
 end;
 
 // Функция для перемещения данных пользователя в AppData
