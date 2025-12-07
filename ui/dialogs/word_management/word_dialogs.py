@@ -1026,8 +1026,28 @@ class WordEditorDialog(QDialog):
         images_group = QGroupBox("Изображения")
         images_layout = QVBoxLayout(images_group)
         
+        # Создаем горизонтальный слой для списка изображений и превью
+        main_images_layout = QHBoxLayout()
+        
+        # Список изображений
         self.images_list = QListWidget()
-        images_layout.addWidget(self.images_list)
+        main_images_layout.addWidget(self.images_list)
+        
+        # Область для превью изображения
+        preview_group = QGroupBox("Превью")
+        preview_layout = QVBoxLayout(preview_group)
+        
+        self.image_preview_label = QLabel()
+        self.image_preview_label.setAlignment(Qt.AlignCenter)
+        self.image_preview_label.setMinimumSize(150, 150)
+        self.image_preview_label.setMaximumSize(150, 150)
+        self.image_preview_label.setStyleSheet("border: 1px solid gray;")
+        self.image_preview_label.setText("Выберите\nизображение")
+        preview_layout.addWidget(self.image_preview_label)
+        
+        main_images_layout.addWidget(preview_group)
+        
+        images_layout.addLayout(main_images_layout)
         
         images_btn_layout = QHBoxLayout()
         
@@ -1040,6 +1060,10 @@ class WordEditorDialog(QDialog):
         images_btn_layout.addWidget(remove_image_btn)
         
         images_layout.addLayout(images_btn_layout)
+        
+        # Подключаем обработчик выбора изображения для обновления превью
+        self.images_list.currentItemChanged.connect(self._update_image_preview)
+        
         layout.addWidget(images_group)
         
         # Кнопки сохранения/отмены
@@ -1132,6 +1156,11 @@ class WordEditorDialog(QDialog):
             self.case_sensitive_checkbox.setChecked(self.word_data.case_sensitive)
             self.important_positions_edit.setText(self.word_data.important_positions)
             self.important_positions_edit.setEnabled(self.word_data.case_sensitive)
+            
+            # Обновляем превью первого изображения, если есть изображения
+            if self.word_data.images and len(self.word_data.images) > 0:
+                self.images_list.setCurrentRow(0)
+                self._update_image_preview(self.images_list.item(0), None)
         # Обновляем предпросмотр только если включена чувствительность к регистру
         if self.word_data.case_sensitive:
             self._update_position_preview()
@@ -1154,7 +1183,7 @@ class WordEditorDialog(QDialog):
 
     def _browse_audio(self):
         """Выбирает аудио файл"""
-        filename, _ = QFileDialog.getOpenFileName(self, "Выберите аудио файл", "", 
+        filename, _ = QFileDialog.getOpenFileName(self, "Выберите аудио файл", "",
                                                 "Audio files (*.mp3 *.wav *.ogg)")
         if filename:
             word_text = self.word_edit.text().strip()
@@ -1175,15 +1204,44 @@ class WordEditorDialog(QDialog):
             
             self.audio_edit.setText(new_filename)
 
+    def _update_image_preview(self, current, previous):
+        """Обновляет превью выбранного изображения"""
+        if current:
+            image_name = current.text()
+            image_path = os.path.join(self.media_manager.images_folder, image_name)
+            
+            if os.path.exists(image_path):
+                from PySide6.QtGui import QPixmap
+                pixmap = QPixmap(image_path)
+                if not pixmap.isNull():
+                    # Масштабируем изображение, чтобы оно помещалось в область превью
+                    scaled_pixmap = pixmap.scaled(
+                        self.image_preview_label.width() - 10,
+                        self.image_preview_label.height() - 10,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                    self.image_preview_label.setPixmap(scaled_pixmap)
+                    self.image_preview_label.setAlignment(Qt.AlignCenter)
+                else:
+                    self.image_preview_label.setText("Ошибка\nзагрузки")
+            else:
+                self.image_preview_label.setText("Файл не\nнайден")
+        else:
+            self.image_preview_label.setText("Выберите\nизображение")
+
     def _add_image(self):
         """Добавляет изображение"""
-        filename, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "", 
+        filename, _ = QFileDialog.getOpenFileName(self, "Выберите изображение", "",
                                                 "Image files (*.jpg *.jpeg *.png *.gif *.bmp)")
         if filename:
             word_text = self.word_edit.text().strip()
             existing_images = self.word_data.images if self.word_data else []
             new_filename = self.media_manager.save_image_file(filename, word_text, existing_images)
             self.images_list.addItem(new_filename)
+            # Обновляем превью, если это первый элемент
+            if self.images_list.count() == 1:
+                self._update_image_preview(self.images_list.item(0), None)
 
     def _remove_image(self):
         """Удаляет выбранное изображение"""
@@ -1206,6 +1264,14 @@ class WordEditorDialog(QDialog):
             
             # Удаляем из списка
             self.images_list.takeItem(current_row)
+            
+            # Обновляем превью - показываем следующее изображение или очищаем превью
+            if self.images_list.count() > 0:
+                new_row = min(current_row, self.images_list.count() - 1)
+                self.images_list.setCurrentRow(new_row)
+                self._update_image_preview(self.images_list.item(new_row), None)
+            else:
+                self.image_preview_label.setText("Выберите\nизображение")
 
     def _save_word(self):
         """Сохраняет слово с проверкой дубликатов"""
