@@ -300,7 +300,17 @@ class WordRepository:
                 for mistake_data in mistake_history_data:
                     # Импортируем datetime для конвертации строки обратно в datetime
                     from datetime import datetime
-                    timestamp = datetime.fromisoformat(mistake_data.get("timestamp", datetime.now().isoformat()))
+                    timestamp_str = mistake_data.get("timestamp", "")
+                    try:
+                        # Пытаемся распознать формат DD-MM-YYYY
+                        timestamp = datetime.strptime(timestamp_str, "%d-%m-%Y")
+                    except ValueError:
+                        # Если не удается распознать, используем старый формат
+                        try:
+                            timestamp = datetime.fromisoformat(timestamp_str)
+                        except ValueError:
+                            # Если и старый формат не подходит, используем текущее время
+                            timestamp = datetime.now()
                     mistake = MistakeRecord(
                         word=mistake_data.get("word", ""),
                         wrong_answer=mistake_data.get("wrong_answer", ""),
@@ -515,7 +525,7 @@ class WordRepository:
                 {
                     "word": mistake.word,
                     "wrong_answer": mistake.wrong_answer,
-                    "timestamp": mistake.timestamp.isoformat(),
+                    "timestamp": mistake.timestamp.strftime("%d-%m-%Y"),
                     "category": mistake.category
                 }
                 for mistake in self.app_data.training_state.mistake_history
