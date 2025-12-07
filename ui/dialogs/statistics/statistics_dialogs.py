@@ -61,9 +61,13 @@ class ProblemWordsDialog(QDialog):
         problem_words_tab = self._create_problem_words_tab()
         tabs.addTab(problem_words_tab, "Проблемные слова")
         
-        # Вторая вкладка: Графики ошибок
-        error_charts_tab = self._create_error_charts_tab()
-        tabs.addTab(error_charts_tab, "Графики ошибок")
+        # Вторая вкладка: Таблица ошибок
+        error_table_tab = self._create_dynamics_table_tab()
+        tabs.addTab(error_table_tab, "Таблица ошибок")
+        
+        # Третья вкладка: Графики
+        charts_tab = self._create_charts_tab()
+        tabs.addTab(charts_tab, "Графики")
         
         layout.addWidget(tabs)
         
@@ -114,33 +118,14 @@ class ProblemWordsDialog(QDialog):
         
         return tab
     
-    def _create_error_charts_tab(self):
-        """Создает вкладку с графиками ошибок"""
-        tab = QWidget()
-        main_layout = QVBoxLayout(tab)
-        
-        # Добавляем фильтр по дате
-        self._create_date_filter_section(main_layout)
-        
-        # Создаем вкладки для таблицы и графиков
-        tabs = QTabWidget()
-        
-        # Вкладка с таблицей
-        table_tab = self._create_dynamics_table_tab()
-        tabs.addTab(table_tab, "Таблица ошибок")
-        
-        # Вкладка с графиками
-        chart_tab = self._create_charts_tab()
-        tabs.addTab(chart_tab, "Графики")
-        
-        main_layout.addWidget(tabs)
-        
-        return tab
     
     def _create_dynamics_table_tab(self):
         """Создает вкладку с таблицей динамики ошибок"""
         table_widget = QWidget()
         table_layout = QVBoxLayout(table_widget)
+        
+        # Добавляем фильтр по дате
+        self._create_date_filter_section(table_layout)
         
         # Добавляем статистику по динамике
         self._create_dynamics_section(table_layout)
@@ -150,6 +135,9 @@ class ProblemWordsDialog(QDialog):
         """Создает вкладку с графиками"""
         chart_widget = QWidget()
         chart_layout = QVBoxLayout(chart_widget)
+        
+        # Добавляем фильтр по дате
+        self._create_date_filter_section(chart_layout)
         
         # Создаем виджет для визуализации
         self.visualization_widget = VisualizationWidget()
@@ -275,7 +263,7 @@ class ProblemWordsDialog(QDialog):
     def _create_date_filter_section(self, layout):
         """Создает секцию фильтрации по дате"""
         date_group = QGroupBox("Фильтр по дате")
-        date_layout = QFormLayout(date_group)
+        date_layout = QHBoxLayout(date_group)  # Changed from QFormLayout to QHBoxLayout
         
         # Создаем горизонтальный макет для элементов управления
         filter_layout = QHBoxLayout()
@@ -307,7 +295,9 @@ class ProblemWordsDialog(QDialog):
         reset_btn.clicked.connect(self._reset_date_filter)
         filter_layout.addWidget(reset_btn)
         
-        date_layout.addRow(filter_layout)
+        # Добавляем фильтр в макет группы (а не в QFormLayout)
+        date_layout.addLayout(filter_layout)  # Add the filter layout directly
+        date_layout.addStretch()  # Add stretch to the right to align to the left
         
         # Уменьшаем высоту группы
         date_group.setMaximumHeight(70)
@@ -476,9 +466,13 @@ class ProblemWordsDialog(QDialog):
             problem_words_tab = self._create_problem_words_tab()
             tabs.addTab(problem_words_tab, "Проблемные слова")
             
-            # Вторая вкладка: Графики ошибок
-            error_charts_tab = self._create_error_charts_tab()
-            tabs.addTab(error_charts_tab, "Графики ошибок")
+            # Вторая вкладка: Таблица ошибок
+            error_table_tab = self._create_dynamics_table_tab()
+            tabs.addTab(error_table_tab, "Таблица ошибок")
+            
+            # Третья вкладка: Графики
+            charts_tab = self._create_charts_tab()
+            tabs.addTab(charts_tab, "Графики")
             
             # Вставляем вкладки на первое место в макете
             main_layout.insertWidget(0, tabs)
