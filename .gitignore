@@ -907,3 +907,13 @@ venv
 SpellingTrainer.spec
 Orfokod.spec
 Orfocode.spec
+ui/dialogs/help/images/words.jpg
+ui/dialogs/help/images/settings.jpg
+ui/dialogs/help/images/password.jpg
+ui/dialogs/help/images/mistakes.jpg
+ui/dialogs/help/images/main_window.jpg
+ui/dialogs/help/images/category.jpg
+ui/dialogs/help/__pycache__/help_dialogs.cpython-313.pyc
+ui/dialogs/help/__pycache__/__init__.cpython-313.pyc
+ui/dialogs/__pycache__/help_dialogs.cpython-313.pyc
+ui/dialogs/help/__init__.py

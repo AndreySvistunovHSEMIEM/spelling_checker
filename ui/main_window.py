@@ -22,6 +22,7 @@ from ui.dialogs.settings.settings_dialogs import SettingsDialog
 from ui.dialogs.auth.password_dialogs import ChangePasswordDialog
 from ui.dialogs.import_export.data_dialogs import BulkImportDialog, ExportCategoriesDialog
 from ui.menu_bar import MenuBar
+from ui.dialogs.help.help_dialogs import HelpDialog
 
 class SpellingTrainer(QMainWindow):
     """Главное окно тренажёра орфографии"""
@@ -1744,3 +1745,8 @@ class SpellingTrainer(QMainWindow):
             self.category_signal_connected = True
         except (TypeError, RuntimeError):
             self.category_signal_connected = False
+
+    def show_help_dialog(self):
+        """Показать диалог справки"""
+        help_dialog = HelpDialog(self)
+        help_dialog.exec()

@@ -34,7 +34,7 @@ class MenuBar:
         # Правка
         edit_menu = menu_bar.addMenu("Правка")
         
-        # Правка -> Добавить слов
+        # Правка -> Добавить слово
         add_word_action = edit_menu.addAction("Добавить слово")
         add_word_action.triggered.connect(self.main_window.add_new_word)
         
@@ -48,7 +48,10 @@ class MenuBar:
         
         # Помощь
         help_menu = menu_bar.addMenu("Помощь")
-        # Help menu remains empty for now
+        
+        # Помощь -> Справка
+        help_action = help_menu.addAction("Справка")
+        help_action.triggered.connect(self.main_window.show_help_dialog)
     
     def _placeholder_action(self):
         """Заглушка для других действий меню"""
