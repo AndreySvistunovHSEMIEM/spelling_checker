@@ -449,18 +449,18 @@ class SpellingTrainer(QMainWindow):
             self.block_auto_load = False
             if dialog:
                 dialog.deleteLater()
-        
+                
     def toggle_music(self):
-        """Включает/выключает фоновую музыку"""
-        self.music_enabled = not self.music_enabled
-        self.music_service.set_music_enabled(self.music_enabled)
-        
-        # Обновляем состояние в настройках
-        self.word_repository.app_data.settings.music_enabled = self.music_enabled
-        self.word_repository.save_data()
-        
-        # Обновляем внешний вид кнопки
-        self._update_music_button_state()
+         """Включает/выключает фоновую музыку"""
+         self.music_enabled = not self.music_enabled
+         self.music_service.set_music_enabled(self.music_enabled)
+         
+         # Обновляем состояние в настройках
+         self.word_repository.app_data.settings.music_enabled = self.music_enabled
+         self.word_repository.save_data()
+         
+         # Обновляем внешний вид кнопки
+         self._update_music_button_state()
 
     def _update_music_button_state(self):
         """Обновляет внешний вид кнопки музыки в зависимости от состояния"""
@@ -1150,7 +1150,7 @@ class SpellingTrainer(QMainWindow):
             layout = central_widget.layout()
             if layout and layout.count() > 2:  # Пропускаем top_panel и category_area
                 media_group = layout.itemAt(2).widget()
-                if isinstance(media_group, QGroupBox):
+                if media_group is not None and isinstance(media_group, QGroupBox):
                     media_group.setTitle(title)
     
     def _load_word_media(self):
@@ -1334,6 +1334,8 @@ class SpellingTrainer(QMainWindow):
                     training_state.increment_incorrect(current_category)
                     training_state.increment_mistake(current_category, self.current_word_data.word)
                     training_state.add_wrong_answer(current_category, self.current_word_data.word, user_answer)
+                    # Добавляем запись об ошибке с датой
+                    training_state.add_mistake_with_date(self.current_word_data.word, user_answer, current_category)
                     
                 # ДОБАВЛЯЕМ/ОБНОВЛЯЕМ СЛОВО НА ПОВТОРЕНИЕ ↓
                 if self.repeat_mistakes and current_category:

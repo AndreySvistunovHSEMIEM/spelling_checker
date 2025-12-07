@@ -6,7 +6,7 @@ import random
 import time
 from typing import List, Optional, Dict, Any
 
-from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData
+from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData, MistakeRecord
 from .constants import Constants
 
 logger = logging.getLogger(__name__)
@@ -232,7 +232,7 @@ class WordRepository:
                     else:
                         self.app_data.training_state.rubles_score = float(legacy_score)
                 # В любом случае, не обновляем текущее значение legacy score,
-                # так как оно устаревшее и используется только для миграции
+                # так как оно устаревшее используется только для миграции
             
             if "used_words" in training_data:
                 used_words_data = training_data.get("used_words", [])
@@ -293,6 +293,24 @@ class WordRepository:
                         total_attempts_needed=rw_data.get("total_attempts_needed", 3)
                     )
                     self.app_data.training_state.repeat_words.append(repeat_word)
+            
+            # ЗАГРУЖАЕМ ИСТОРИЮ ОШИБОК
+            if "mistake_history" in training_data:
+                mistake_history_data = training_data.get("mistake_history", [])
+                for mistake_data in mistake_history_data:
+                    # Импортируем datetime для конвертации строки обратно в datetime
+                    from datetime import datetime
+                    timestamp = datetime.fromisoformat(mistake_data.get("timestamp", datetime.now().isoformat()))
+                    mistake = MistakeRecord(
+                        word=mistake_data.get("word", ""),
+                        wrong_answer=mistake_data.get("wrong_answer", ""),
+                        timestamp=timestamp,
+                        category=mistake_data.get("category", "")
+                    )
+                    self.app_data.training_state.mistake_history.append(mistake)
+            else:
+                # Если в файле нет поля mistake_history (старый формат), инициализируем пустым списком
+                self.app_data.training_state.mistake_history = []
                 
             logger.info("Прогресс загружен: points_score=%d, rubles_score=%.2f, used_words=%d",
                     self.app_data.training_state.points_score,
@@ -492,6 +510,17 @@ class WordRepository:
             for category, words in self.app_data.training_state.used_words_by_category.items():
                 used_words_by_category_dict[category] = list(words)
             
+            # Преобразуем историю ошибок для сохранения
+            mistake_history_list = [
+                {
+                    "word": mistake.word,
+                    "wrong_answer": mistake.wrong_answer,
+                    "timestamp": mistake.timestamp.isoformat(),
+                    "category": mistake.category
+                }
+                for mistake in self.app_data.training_state.mistake_history
+            ]
+            
             progress_data = {
                 "training_state": {
                     "points_score": self.app_data.training_state.points_score,
@@ -513,7 +542,9 @@ class WordRepository:
                             "total_attempts_needed": rw.total_attempts_needed
                         }
                         for rw in self.app_data.training_state.repeat_words
-                    ]
+                    ],
+                    # ДОБАВЛЯЕМ СОХРАНЕНИЕ ИСТОРИИ ОШИБОК
+                    "mistake_history": mistake_history_list
                 }
             }
 

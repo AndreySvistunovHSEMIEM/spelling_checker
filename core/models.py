@@ -3,6 +3,7 @@ import uuid
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Dict, List, Set
 
 @dataclass
@@ -147,6 +148,16 @@ class RepeatWordData:
             raise ValueError("current_attempt должен быть от 1 до total_attempts_needed")
                 
 
+# Сначала определяем MistakeRecord
+@dataclass
+class MistakeRecord:
+    """Запись об ошибке с датой"""
+    word: str
+    wrong_answer: str
+    timestamp: datetime
+    category: str = ""
+
+
 @dataclass
 class TrainingState:
     """Состояние тренировки"""
@@ -167,6 +178,8 @@ class TrainingState:
     incorrect_answers_count: Dict[str, int] = field(default_factory=dict)
     # ДОБАВЛЯЕМ ПОЛЕ ДЛЯ СЛОВ НА ПОВТОРЕНИИ ↓
     repeat_words: List[RepeatWordData] = field(default_factory=list)
+    # ИСТОРИЯ ОШИБОК С ДАТАМИ
+    mistake_history: List[MistakeRecord] = field(default_factory=list)
     
     def __post_init__(self):
         """Инициализация после создания объекта"""
@@ -335,6 +348,39 @@ class TrainingState:
             self.points_score = int(value)
         else:  # rubles or default
             self.rubles_score = value
+
+    def add_mistake_with_date(self, word: str, wrong_answer: str, category: str = ""):
+        """Добавляет запись об ошибке с датой"""
+        mistake = MistakeRecord(
+            word=word,
+            wrong_answer=wrong_answer,
+            timestamp=datetime.now(),
+            category=category
+        )
+        self.mistake_history.append(mistake)
+
+    def get_mistakes_by_date_range(self, start_date: datetime, end_date: datetime) -> List[MistakeRecord]:
+        """Возвращает ошибки в заданном диапазоне дат"""
+        return [
+            mistake for mistake in self.mistake_history
+            if start_date <= mistake.timestamp <= end_date
+        ]
+
+    def get_mistakes_by_category_and_date(self, category: str, start_date: datetime, end_date: datetime) -> List[MistakeRecord]:
+        """Возвращает ошибки в заданной категории в заданном диапазоне дат"""
+        return [
+            mistake for mistake in self.mistake_history
+            if mistake.category == category and start_date <= mistake.timestamp <= end_date
+        ]
+
+    def get_mistakes_by_word_and_date(self, word: str, start_date: datetime, end_date: datetime) -> List[MistakeRecord]:
+        """Возвращает ошибки для заданного слова в заданном диапазоне дат"""
+        return [
+            mistake for mistake in self.mistake_history
+            if mistake.word == word and start_date <= mistake.timestamp <= end_date
+        ]
+
+
 
 
 @dataclass
