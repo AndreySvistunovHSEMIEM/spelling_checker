@@ -15,6 +15,7 @@ from core.constants import Constants
 from core.models import WordData
 from utils.helpers import show_silent_message
 from ui.dialogs.import_export.data_dialogs import BulkImportDialog, ExportCategoriesDialog
+from ui.dialogs.word_management.category_management_dialog import CategoryManagementDialog
 
 
 logger = logging.getLogger(__name__)
@@ -68,10 +69,11 @@ class WordManagerDialog(QDialog):
         self.category_filter_combo.currentTextChanged.connect(self._on_category_filter_changed)
         filter_layout.addWidget(self.category_filter_combo)
         
-        delete_category_btn = QPushButton("🗑️ Категория")
-        delete_category_btn.setToolTip("Удалить выбранную категорию")
-        delete_category_btn.clicked.connect(self._delete_category)
-        filter_layout.addWidget(delete_category_btn)
+        manage_categories_btn = QPushButton("⚙️")
+        manage_categories_btn.setToolTip("Управление категориями")
+        manage_categories_btn.setFixedSize(24, 24) 
+        manage_categories_btn.clicked.connect(self._manage_categories)
+        filter_layout.addWidget(manage_categories_btn)
         
         layout.addLayout(filter_layout)  # ТЕПЕРЬ ИСПОЛЬЗУЕМ filter_layout
         
@@ -326,54 +328,15 @@ class WordManagerDialog(QDialog):
             
             self._refresh_words_tree()
             
-    def _delete_category(self):
-        """Удаляет выбранную категорию"""
-        current_category = self.category_filter_combo.currentText()
-        if current_category == "Все":
-            QMessageBox.warning(self, "Ошибка", "Выберите конкретную категорию для удаления!")
-            return
-        
-        # Используем ту же логику, что и в WordEditorDialog
-        stats = self.word_repository.get_category_stats(current_category)
-        
-        if stats['words_with_single_category'] > 0:
-            message = (
-                f"Невозможно удалить категорию '{current_category}'.\n\n"
-                f"Эта категория является единственной для {stats['words_with_single_category']} слов.\n\n"
-                f"Всего слов в категории: {stats['total_words']}\n"
-                f"Слов с единственной категорией: {stats['words_with_single_category']}\n"
-                f"Слов с несколькими категориями: {stats['words_with_multiple_categories']}"
-            )
-            QMessageBox.warning(self, "Невозможно удалить категорию", message)
-            return
-        
-        if stats['total_words'] > 0:
-            message = (
-                f"Удалить категорию '{current_category}'?\n\n"
-                f"Эта категория будет удалена из {stats['total_words']} слов.\n"
-                f"Все эти слова имеют другие категории."
-            )
-            reply = QMessageBox.question(self, "Подтверждение удаления", message)
-            if reply != QMessageBox.Yes:
-                return
-        else:
-            reply = QMessageBox.question(self, "Подтверждение", 
-                                       f"Удалить пустую категорию '{current_category}'?")
-            if reply != QMessageBox.Yes:
-                return
-        
-        result = self.word_repository.delete_category(current_category)
-        
-        if result['success']:
-            # Обновляем интерфейс
+    def _manage_categories(self):
+        """Открывает диалог управления категориями"""
+        dialog = CategoryManagementDialog(self, self.word_repository)
+        if dialog.exec():
+            # Обновляем интерфейс после закрытия диалога
             self.category_filter_combo.clear()
             self.category_filter_combo.addItem("Все")
             self.category_filter_combo.addItems(self.word_repository.app_data.categories)
             self._refresh_words_tree()
-            
-            QMessageBox.information(self, "Успех", result['message'])
-        else:
-            QMessageBox.warning(self, "Ошибка", result['message'])
         
     def _export_data(self):
         """Экспорт данных в архивный файл"""
