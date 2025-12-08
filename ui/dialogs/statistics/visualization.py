@@ -27,10 +27,11 @@ class StatisticsVisualizer:
         # Добавляем возможность увеличения/уменьшения
         self.fig.tight_layout()
         
-        # Поворачиваем метки дат для лучшего отображения
+        # Поворачиваем метки дат для лучшего отображения и уменьшаем размер шрифта
         for label in ax.get_xticklabels():
             label.set_rotation(45)
             label.set_ha('right')
+            label.set_fontsize(8)  # Уменьшаем размер шрифта дат
         
     def create_error_dynamics_chart(self, 
                                   mistake_history: List[MistakeRecord], 
@@ -114,6 +115,10 @@ class StatisticsVisualizer:
         date_format = DateFormatter('%d.%m')
         ax.xaxis.set_major_formatter(date_format)
         
+        # Уменьшаем размер шрифта для меток дат
+        for label in ax.get_xticklabels():
+            label.set_fontsize(8)
+        
         # Автоматическое масштабирование графика под видимую область
         ax.relim()
         ax.autoscale_view()
@@ -170,6 +175,10 @@ class StatisticsVisualizer:
         # Форматирование дат на оси X
         date_format = DateFormatter('%d.%m')
         ax.xaxis.set_major_formatter(date_format)
+        
+        # Уменьшаем размер шрифта для меток дат
+        for label in ax.get_xticklabels():
+            label.set_fontsize(8)
         
         # Автоматическое масштабирование графика под видимую область
         ax.relim()
@@ -242,6 +251,10 @@ class StatisticsVisualizer:
         # Форматирование дат на оси X
         date_format = DateFormatter('%d.%m')
         ax.xaxis.set_major_formatter(date_format)
+        
+        # Уменьшаем размер шрифта для меток дат
+        for label in ax.get_xticklabels():
+            label.set_fontsize(8)
         
         # Автоматическое масштабирование графика под видимую область
         ax.relim()
