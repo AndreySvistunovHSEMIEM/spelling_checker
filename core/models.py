@@ -159,6 +159,14 @@ class MistakeRecord:
 
 
 @dataclass
+class PayoutRecord:
+    """Запись о выплате с датой"""
+    amount: float
+    timestamp: datetime
+    description: str = "Выплата"
+
+
+@dataclass
 class TrainingState:
     """Состояние тренировки"""
     score: float = 0.0  # Legacy field for backward compatibility
@@ -180,6 +188,8 @@ class TrainingState:
     repeat_words: List[RepeatWordData] = field(default_factory=list)
     # ИСТОРИЯ ОШИБОК С ДАТАМИ
     mistake_history: List[MistakeRecord] = field(default_factory=list)
+    # ИСТОРИЯ ВЫПЛАТ С ДАТАМИ
+    payout_history: List[PayoutRecord] = field(default_factory=list)
     
     def __post_init__(self):
         """Инициализация после создания объекта"""
@@ -379,6 +389,27 @@ class TrainingState:
             mistake for mistake in self.mistake_history
             if mistake.word == word and start_date <= mistake.timestamp <= end_date
         ]
+
+    def add_payout(self, amount: float, description: str = "Выплата"):
+        """Добавляет запись о выплате"""
+        payout = PayoutRecord(
+            amount=amount,
+            timestamp=datetime.now(),
+            description=description
+        )
+        self.payout_history.append(payout)
+
+    def get_payouts_by_date_range(self, start_date: datetime, end_date: datetime) -> List[PayoutRecord]:
+        """Возвращает выплаты в заданном диапазоне дат"""
+        return [
+            payout for payout in self.payout_history
+            if start_date <= payout.timestamp <= end_date
+        ]
+
+    def get_total_payouts_by_date_range(self, start_date: datetime, end_date: datetime) -> float:
+        """Возвращает общую сумму выплат в заданном диапазоне дат"""
+        payouts = self.get_payouts_by_date_range(start_date, end_date)
+        return sum(payout.amount for payout in payouts)
 
 
 

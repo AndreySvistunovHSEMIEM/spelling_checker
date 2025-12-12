@@ -27,6 +27,10 @@ class MenuBar:
         settings_action = file_menu.addAction("Настройки")
         settings_action.triggered.connect(self.main_window.open_settings)
         
+        # Файл -> Выплаты
+        payouts_action = file_menu.addAction("Выплаты")
+        payouts_action.triggered.connect(self.main_window.show_payouts_statistics)
+        
         # Файл -> Выход
         exit_action = file_menu.addAction("Выход")
         exit_action.triggered.connect(self.main_window.close)

@@ -23,6 +23,8 @@ from ui.dialogs.auth.password_dialogs import ChangePasswordDialog
 from ui.dialogs.import_export.data_dialogs import BulkImportDialog, ExportCategoriesDialog
 from ui.menu_bar import MenuBar
 from ui.dialogs.help.help_dialogs import HelpDialog
+from ui.dialogs.payouts_statistics_dialog import PayoutsStatisticsDialog
+from ui.dialogs.payout_dialog import PayoutDialog
 
 class SpellingTrainer(QMainWindow):
     """Главное окно тренажёра орфографии"""
@@ -260,9 +262,21 @@ class SpellingTrainer(QMainWindow):
         self.score_label.setMinimumWidth(80)
         self.score_label.setMaximumWidth(120)
 
+        # Кнопка "выплатить" (появляется только если текущий тип награды - рубли)
+        self.payout_btn = QPushButton()
+        if self.reward_type == "rubles":
+            self.payout_btn.setText("₽")
+            self.payout_btn.setToolTip("Выплатить")
+        else:
+            self.payout_btn.setText("$")
+            self.payout_btn.setToolTip("Выплатить")
+        self.payout_btn.setFixedSize(24, 24)
+        self.payout_btn.clicked.connect(self.open_payout_dialog)
+
         # Добавляем кнопку и счёт в рамку
         score_frame_layout.addWidget(self.reset_score_btn)
         score_frame_layout.addWidget(self.score_label)
+        score_frame_layout.addWidget(self.payout_btn)
 
         score_layout.addWidget(score_frame)
         top_layout.addLayout(score_layout)
@@ -1443,6 +1457,18 @@ class SpellingTrainer(QMainWindow):
             score_text = f"{current_score:.2f} руб."
         self.score_label.setText(score_text)
         
+        # Обновляем кнопку выплаты в зависимости от типа награды, если кнопка уже создана
+        if hasattr(self, 'payout_btn'):
+            if self.reward_type == "rubles":
+                self.payout_btn.setText("₽")
+                self.payout_btn.setToolTip("Выплатить")
+            else:
+                self.payout_btn.setText("$")
+                self.payout_btn.setToolTip("Выплатить")
+            
+            # Скрываем кнопку выплаты, если тип награды - баллы
+            self.payout_btn.setVisible(self.reward_type == "rubles")
+        
         # Сохраняем данные при обновлении счёта для обеспечения сохранности
         self.word_repository.save_data()
     
@@ -1757,3 +1783,39 @@ class SpellingTrainer(QMainWindow):
         """Показать диалог справки"""
         help_dialog = HelpDialog(self)
         help_dialog.exec()
+    
+    def open_payout_dialog(self):
+        """Открывает диалог выплаты рублей"""
+        if self.reward_type != "rubles":
+            return # Выплаты доступны только для типа награды "rubles"
+        
+        training_state = self.word_repository.app_data.training_state
+        current_score = training_state.rubles_score
+        
+        if current_score <= 0:
+            QMessageBox.information(self, "Выплата", "На счёте нет средств для выплаты!")
+            return
+        
+        dialog = PayoutDialog(self, current_score)
+        if dialog.exec() == QDialog.Accepted:
+            amount = dialog.get_amount()
+            if amount > 0:
+                # Вычитаем сумму из счёта
+                training_state.rubles_score -= amount
+                
+                # Добавляем запись о выплате
+                training_state.add_payout(amount, f"Выплата {amount:.2f} руб.")
+                
+                # Обновляем отображение счёта
+                self.update_score()
+                
+                # Сохраняем данные
+                self.word_repository.save_data()
+                
+                QMessageBox.information(self, "Выплата", f"Выплачено {amount:.2f} руб.")
+    
+    def show_payouts_statistics(self):
+        """Показывает диалог статистики выплат"""
+        training_state = self.word_repository.app_data.training_state
+        dialog = PayoutsStatisticsDialog(self, training_state)
+        dialog.exec()

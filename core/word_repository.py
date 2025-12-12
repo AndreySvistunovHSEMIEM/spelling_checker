@@ -6,7 +6,7 @@ import random
 import time
 from typing import List, Optional, Dict, Any
 
-from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData, MistakeRecord
+from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData, MistakeRecord, PayoutRecord
 from .constants import Constants
 
 logger = logging.getLogger(__name__)
@@ -299,18 +299,8 @@ class WordRepository:
                 mistake_history_data = training_data.get("mistake_history", [])
                 for mistake_data in mistake_history_data:
                     # Импортируем datetime для конвертации строки обратно в datetime
-                    from datetime import datetime
                     timestamp_str = mistake_data.get("timestamp", "")
-                    try:
-                        # Пытаемся распознать формат DD-MM-YYYY
-                        timestamp = datetime.strptime(timestamp_str, "%d-%m-%Y")
-                    except ValueError:
-                        # Если не удается распознать, используем старый формат
-                        try:
-                            timestamp = datetime.fromisoformat(timestamp_str)
-                        except ValueError:
-                            # Если и старый формат не подходит, используем текущее время
-                            timestamp = datetime.now()
+                    timestamp = self._parse_datetime_string(timestamp_str)
                     mistake = MistakeRecord(
                         word=mistake_data.get("word", ""),
                         wrong_answer=mistake_data.get("wrong_answer", ""),
@@ -321,6 +311,22 @@ class WordRepository:
             else:
                 # Если в файле нет поля mistake_history (старый формат), инициализируем пустым списком
                 self.app_data.training_state.mistake_history = []
+            
+            # ЗАГРУЖАЕМ ИСТОРИЮ ВЫПЛАТ
+            if "payout_history" in training_data:
+                payout_history_data = training_data.get("payout_history", [])
+                for payout_data in payout_history_data:
+                    timestamp_str = payout_data.get("timestamp", "")
+                    timestamp = self._parse_datetime_string(timestamp_str)
+                    payout = PayoutRecord(
+                        amount=payout_data.get("amount", 0.0),
+                        timestamp=timestamp,
+                        description=payout_data.get("description", "Выплата")
+                    )
+                    self.app_data.training_state.payout_history.append(payout)
+            else:
+                # Если в файле нет поля payout_history (старый формат), инициализируем пустым списком
+                self.app_data.training_state.payout_history = []
                 
             logger.info("Прогресс загружен: points_score=%d, rubles_score=%.2f, used_words=%d",
                     self.app_data.training_state.points_score,
@@ -531,6 +537,26 @@ class WordRepository:
                 for mistake in self.app_data.training_state.mistake_history
             ]
             
+            # Преобразуем историю выплат для сохранения
+            payout_history_list = [
+                {
+                    "amount": payout.amount,
+                    "timestamp": payout.timestamp.strftime("%d-%m-%Y"),
+                    "description": payout.description
+                }
+                for payout in self.app_data.training_state.payout_history
+            ]
+            
+            # Преобразуем историю выплат для сохранения
+            payout_history_list = [
+                {
+                    "amount": payout.amount,
+                    "timestamp": payout.timestamp.strftime("%d-%m-%Y"),
+                    "description": payout.description
+                }
+                for payout in self.app_data.training_state.payout_history
+            ]
+            
             progress_data = {
                 "training_state": {
                     "points_score": self.app_data.training_state.points_score,
@@ -554,7 +580,9 @@ class WordRepository:
                         for rw in self.app_data.training_state.repeat_words
                     ],
                     # ДОБАВЛЯЕМ СОХРАНЕНИЕ ИСТОРИИ ОШИБОК
-                    "mistake_history": mistake_history_list
+                    "mistake_history": mistake_history_list,
+                    # ДОБАВЛЯЕМ СОХРАНЕНИЕ ИСТОРИИ ВЫПЛАТ
+                    "payout_history": payout_history_list
                 }
             }
 
@@ -956,3 +984,33 @@ class WordRepository:
         
         # В крайнем случае используем timestamp (маловероятно что будет 9000 слов)
         return str(int(time.time() * 1000))[-4:].zfill(4)
+    
+    def _parse_datetime_string(self, timestamp_str: str):
+        """Парсит строку даты в объект datetime, поддерживая разные форматы"""
+        from datetime import datetime
+        
+        if not timestamp_str:
+            return datetime.now()
+        
+        # Пробуем разные форматы даты
+        formats = [
+            "%d-%m-%Y",      # DD-MM-YYYY
+            "%Y-%m-%d",      # YYYY-MM-DD
+            "%d.%m.%Y",      # DD.MM.YYYY
+            "%Y-%m-%dT%H:%M:%S",  # ISO формат без Z
+            "%Y-%m-%dT%H:%M:%S.%f",  # ISO формат с микросекундами
+            "%Y-%m-%dT%H:%M:%S%z",  # ISO формат с таймзоной
+        ]
+        
+        for fmt in formats:
+            try:
+                return datetime.strptime(timestamp_str, fmt)
+            except ValueError:
+                continue
+        
+        # Если ни один формат не подошел, используем fromisoformat (для более сложных ISO форматов)
+        try:
+            return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        except ValueError:
+            # Если и это не удалось, возвращаем текущее время
+            return datetime.now()
