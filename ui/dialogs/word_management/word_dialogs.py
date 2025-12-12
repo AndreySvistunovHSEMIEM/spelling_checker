@@ -570,21 +570,6 @@ class WordManagerDialog(QDialog):
                 for word_data in self.word_repository.app_data.words:
                     existing_word_uid_map[(word_data.word.lower(), word_data.uid)] = word_data
                 
-                # Словари для отслеживания uid в импортируемых данных (для обнаружения конфликтов)
-                import_uid_map = {}  # uid -> список слов
-                import_word_map = {}  # word -> список uid
-                
-                for word_dict in import_words:
-                    word_lower = word_dict["word"].lower()
-                    uid = word_dict.get("uid", "")
-                    
-                    if uid not in import_uid_map:
-                        import_uid_map[uid] = []
-                    import_uid_map[uid].append(word_dict)
-                    
-                    if word_lower not in import_word_map:
-                        import_word_map[word_lower] = []
-                    import_word_map[word_lower].append(uid)
                 
                 # Обработка импортируемых слов
                 for word_dict in import_words:
@@ -1273,26 +1258,31 @@ class WordEditorDialog(QDialog):
         duplicates = self.word_repository.find_duplicate_words(word_text, exclude_uid=existing_uid)
         
         if duplicates:
-            # Формируем сообщение о дубликатах
-            duplicate_info = []
-            for dup in duplicates:
-                categories = ", ".join(dup.categories) if dup.categories else "без категории"
-                case_info = " (учет регистра)" if dup.case_sensitive else ""
-                duplicate_info.append(f"• '{dup.word}'{case_info} - категории: {categories}")
+            # Проверяем, есть ли дубликаты в той же категории
+            current_category = self.category_combo.currentText()
+            same_category_duplicates = [dup for dup in duplicates if current_category in dup.categories]
             
-            duplicate_message = "\n".join(duplicate_info)
-            
-            reply = QMessageBox.question(
-                self,
-                "Слово уже существует",
-                f"Слово '{word_text}' уже существует в базе:\n\n{duplicate_message}\n\n"
-                f"Всё равно создать новое слово?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
-            )
-            
-            if reply == QMessageBox.No:
-                return
+            if same_category_duplicates:
+                # Формируем сообщение о дубликатах в той же категории
+                duplicate_info = []
+                for dup in same_category_duplicates:
+                    categories = ", ".join(dup.categories) if dup.categories else "без категории"
+                    case_info = " (учет регистра)" if dup.case_sensitive else ""
+                    duplicate_info.append(f"• '{dup.word}'{case_info} - категории: {categories}")
+                
+                duplicate_message = "\n".join(duplicate_info)
+                
+                reply = QMessageBox.question(
+                    self,
+                    "Слово уже существует в этой категории",
+                    f"Слово '{word_text}' уже существует в категории '{current_category}':\n\n{duplicate_message}\n\n"
+                    f"Всё равно создать новое слово?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.No:
+                    return
         
         # Создаем объект слова
         word_data = WordData(

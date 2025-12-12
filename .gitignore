@@ -1,4 +1,5 @@
 core/audio
+core/audio2
 core/images
 ui/correct.mp3
 ui/incorrect.mp3
@@ -32,3 +33,4 @@ ui/dialogs/help/images
 ui/dialogs/help/__pycache__
 ui/dialogs/__pycache__
 ui/dialogs/help/__init__.py
+st.code-workspace

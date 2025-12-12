@@ -122,5 +122,13 @@ class MusicService:
     
     def cleanup(self):
         """Очистка ресурсов"""
-        self.check_timer.stop()
-        self.music_player.stop()
+        if self.check_timer:
+            self.check_timer.stop()
+            self.check_timer = None
+        if self.music_player:
+            self.music_player.stop()
+            self.music_player.setSource(QUrl())  # Очищаем источник
+        if self.music_output:
+            self.music_output = None
+        self.playback_queue = []
+        self.track_list = []

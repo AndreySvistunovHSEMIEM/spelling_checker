@@ -1219,7 +1219,12 @@ class SpellingTrainer(QMainWindow):
     def play_audio(self):
         """Воспроизведение аудио слова"""
         if self.current_audio_file:
-            self.audio_service.play_word_audio(self.current_audio_file, self.media_manager.audio_folder)
+            # Проверяем наличие аудиофайла перед воспроизведением
+            audio_path = os.path.join(self.media_manager.audio_folder, self.current_audio_file)
+            if os.path.exists(audio_path):
+                self.audio_service.play_word_audio(self.current_audio_file, self.media_manager.audio_folder)
+            else:
+                QMessageBox.warning(self, "Предупреждение", f"Аудиофайл не найден: {audio_path}")
         else:
             QMessageBox.warning(self, "Предупреждение", "Аудио не доступно для этого слова")
         

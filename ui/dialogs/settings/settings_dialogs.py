@@ -302,10 +302,10 @@ class SettingsDialog(QDialog):
         if not is_checked:
             # Если флажок снимают - запрашиваем пароль
             password, ok = QInputDialog.getText(
-                self, 
+                self,
                 "Подтверждение пароля",
                 "Введите текущий пароль:",
-                QLineEdit.Password
+                QLineEdit.PasswordEchoOnEdit  # Изменили на более безопасный режим
             )
             
             if ok:

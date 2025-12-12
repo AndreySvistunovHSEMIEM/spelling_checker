@@ -919,7 +919,7 @@ class WordRepository:
 
     def find_duplicate_words(self, word: str, exclude_uid: str = None) -> List[WordData]:
         """
-        Находит все слова с таким же написанием (без учета регистра)
+        Находит все слова с таким же написанием (без учета регистра), включая информацию о категориях
         """
         word_lower = word.lower()
         duplicates = []
