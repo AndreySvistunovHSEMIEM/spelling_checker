@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QLineEdit, QComboBox,
                                QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog)
 from PySide6.QtGui import QFont, QPixmap, QIcon
-from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtCore import Qt, QTimer, QSize, QPropertyAnimation, QEasingCurve
+from PySide6.QtWidgets import QGraphicsOpacityEffect
 
 from core.constants import Constants
 from core.models import WordData, RepeatWordData
@@ -1183,8 +1184,8 @@ class SpellingTrainer(QMainWindow):
                 pixmap = create_scaled_pixmap(image_path, Constants.IMAGE_WIDTH, Constants.IMAGE_HEIGHT)
                 
                 if pixmap:
-                    self.image_label.setPixmap(pixmap)
-                    self.image_label.setText("")
+                    # Применяем плавную смену изображения
+                    self._fade_to_new_image(pixmap)
                 else:
                     self._show_default_image()
             else:
@@ -1195,6 +1196,40 @@ class SpellingTrainer(QMainWindow):
         
         # Сохраняем информацию об аудио
         self.current_audio_file = self.current_word_data.audio
+    
+    def _fade_to_new_image(self, new_pixmap):
+        """Анимирует плавный переход к новому изображению"""
+        # Создаем эффект прозрачности для текущего изображения
+        if not hasattr(self, 'opacity_effect'):
+            self.opacity_effect = QGraphicsOpacityEffect()
+            self.image_label.setGraphicsEffect(self.opacity_effect)
+        
+        # Создаем анимацию
+        self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_animation.setDuration(300)  # 300ms для исчезновения
+        self.fade_animation.setStartValue(1.0)
+        self.fade_animation.setEndValue(0.0)
+        self.fade_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        
+        # Подключаем слот, который сменит изображение при завершении анимации исчезновения
+        self.fade_animation.finished.connect(lambda: self._set_new_image_and_fade_in(new_pixmap))
+        
+        # Запускаем анимацию
+        self.fade_animation.start()
+    
+    def _set_new_image_and_fade_in(self, pixmap):
+        """Устанавливает новое изображение и анимирует его появление"""
+        # Устанавливаем новое изображение
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setText("")
+        
+        # Анимируем появление
+        self.fade_in_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_in_animation.setDuration(300)  # 300ms для появления
+        self.fade_in_animation.setStartValue(0.0)
+        self.fade_in_animation.setEndValue(1.0)
+        self.fade_in_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        self.fade_in_animation.start()
     
     def _show_default_image(self):
         """Показывает изображение-заглушку"""
@@ -1207,8 +1242,7 @@ class SpellingTrainer(QMainWindow):
                     Constants.IMAGE_HEIGHT
                 )
                 if pixmap:
-                    self.image_label.setPixmap(pixmap)
-                    self.image_label.setText("")
+                    self._fade_to_new_image(pixmap)
                     return
             else:
                 # Если в data directory нет, пробуем загрузить из ui/icons (base directory)
@@ -1220,15 +1254,49 @@ class SpellingTrainer(QMainWindow):
                         Constants.IMAGE_HEIGHT
                     )
                     if pixmap:
-                        self.image_label.setPixmap(pixmap)
-                        self.image_label.setText("")
+                        self._fade_to_new_image(pixmap)
                         return
             
             # Если ни один из путей не сработал, показываем текст
-            self.image_label.setText("Изображение не доступно")
+            # Для текста также применяем плавный переход, но с текстом
+            self._fade_to_new_text("Изображение не доступно")
         except Exception as e:
             logging.error(f"Ошибка при отображении заглушки изображения: {e}")
-            self.image_label.setText("Ошибка загрузки изображения")
+            self._fade_to_new_text("Ошибка загрузки изображения")
+    
+    def _fade_to_new_text(self, text):
+        """Анимирует плавный переход к новому тексту"""
+        # Создаем эффект прозрачности для текущего изображения
+        if not hasattr(self, 'opacity_effect'):
+            self.opacity_effect = QGraphicsOpacityEffect()
+            self.image_label.setGraphicsEffect(self.opacity_effect)
+        
+        # Создаем анимацию
+        self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_animation.setDuration(300)  # 300ms для исчезновения
+        self.fade_animation.setStartValue(1.0)
+        self.fade_animation.setEndValue(0.0)
+        self.fade_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        
+        # Подключаем слот, который сменит текст при завершении анимации исчезновения
+        self.fade_animation.finished.connect(lambda: self._set_new_text_and_fade_in(text))
+        
+        # Запускаем анимацию
+        self.fade_animation.start()
+    
+    def _set_new_text_and_fade_in(self, text):
+        """Устанавливает новый текст и анимирует его появление"""
+        # Устанавливаем новый текст
+        self.image_label.clear()  # Очищаем pixmap, если он был
+        self.image_label.setText(text)
+        
+        # Анимируем появление
+        self.fade_in_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_in_animation.setDuration(300)  # 300ms для появления
+        self.fade_in_animation.setStartValue(0.0)
+        self.fade_in_animation.setEndValue(1.0)
+        self.fade_in_animation.setEasingCurve(QEasingCurve.InOutQuad)
+        self.fade_in_animation.start()
     
     def play_audio(self):
         """Воспроизведение аудио слова"""

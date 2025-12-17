@@ -34,3 +34,4 @@ ui/dialogs/help/__pycache__
 ui/dialogs/__pycache__
 ui/dialogs/help/__init__.py
 st.code-workspace
+ui/interface
