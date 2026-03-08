@@ -6,7 +6,7 @@ import random
 import time
 from typing import List, Optional, Dict, Any
 
-from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData, MistakeRecord, PayoutRecord
+from .models import AppData, WordData, TrainingState, AppSettings, RepeatWordData, MistakeRecord, PayoutRecord, GoalData
 from .constants import Constants
 
 logger = logging.getLogger(__name__)
@@ -327,6 +327,13 @@ class WordRepository:
             else:
                 # Если в файле нет поля payout_history (старый формат), инициализируем пустым списком
                 self.app_data.training_state.payout_history = []
+
+            goal_data = training_data.get("active_goal", {})
+            self.app_data.training_state.active_goal = GoalData(
+                title=goal_data.get("title", "Поход в кино"),
+                target_points=goal_data.get("target_points", 100),
+                reward_confirmed=goal_data.get("reward_confirmed", False)
+            )
                 
             logger.info("Прогресс загружен: points_score=%d, rubles_score=%.2f, used_words=%d",
                     self.app_data.training_state.points_score,
@@ -582,7 +589,12 @@ class WordRepository:
                     # ДОБАВЛЯЕМ СОХРАНЕНИЕ ИСТОРИИ ОШИБОК
                     "mistake_history": mistake_history_list,
                     # ДОБАВЛЯЕМ СОХРАНЕНИЕ ИСТОРИИ ВЫПЛАТ
-                    "payout_history": payout_history_list
+                    "payout_history": payout_history_list,
+                    "active_goal": {
+                        "title": self.app_data.training_state.active_goal.title,
+                        "target_points": self.app_data.training_state.active_goal.target_points,
+                        "reward_confirmed": self.app_data.training_state.active_goal.reward_confirmed
+                    }
                 }
             }
 

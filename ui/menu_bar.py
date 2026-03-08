@@ -28,8 +28,8 @@ class MenuBar:
         settings_action.triggered.connect(self.main_window.open_settings)
         
         # Файл -> Выплаты
-        payouts_action = file_menu.addAction("Выплаты")
-        payouts_action.triggered.connect(self.main_window.show_payouts_statistics)
+        self.payouts_action = file_menu.addAction("Выплаты")
+        self.payouts_action.triggered.connect(self.main_window.show_payouts_statistics)
         
         # Файл -> Выход
         exit_action = file_menu.addAction("Выход")
@@ -56,6 +56,11 @@ class MenuBar:
         # Помощь -> Справка
         help_action = help_menu.addAction("Справка")
         help_action.triggered.connect(self.main_window.show_help_dialog)
+
+    def update_reward_actions(self, reward_type: str):
+        """Показывает только релевантные для текущего режима действия"""
+        if hasattr(self, "payouts_action"):
+            self.payouts_action.setVisible(reward_type == "rubles")
     
     def _placeholder_action(self):
         """Заглушка для других действий меню"""

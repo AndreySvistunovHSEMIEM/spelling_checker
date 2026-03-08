@@ -167,6 +167,20 @@ class PayoutRecord:
 
 
 @dataclass
+class GoalData:
+    """Данные активной цели ребенка"""
+    title: str = "Поход в кино"
+    target_points: int = 100
+    reward_confirmed: bool = False
+
+    def __post_init__(self):
+        """Нормализация значений цели"""
+        self.title = (self.title or "Поход в кино").strip() or "Поход в кино"
+        if self.target_points <= 0:
+            self.target_points = 100
+
+
+@dataclass
 class TrainingState:
     """Состояние тренировки"""
     score: float = 0.0  # Legacy field for backward compatibility
@@ -190,6 +204,8 @@ class TrainingState:
     mistake_history: List[MistakeRecord] = field(default_factory=list)
     # ИСТОРИЯ ВЫПЛАТ С ДАТАМИ
     payout_history: List[PayoutRecord] = field(default_factory=list)
+    # АКТИВНАЯ ЦЕЛЬ ДЛЯ СИСТЕМЫ НАГРАД
+    active_goal: GoalData = field(default_factory=GoalData)
     
     def __post_init__(self):
         """Инициализация после создания объекта"""
@@ -410,6 +426,28 @@ class TrainingState:
         """Возвращает общую сумму выплат в заданном диапазоне дат"""
         payouts = self.get_payouts_by_date_range(start_date, end_date)
         return sum(payout.amount for payout in payouts)
+
+    def set_goal(self, title: str, target_points: int):
+        """Обновляет активную цель"""
+        self.active_goal = GoalData(title=title, target_points=target_points, reward_confirmed=False)
+
+    def is_goal_reached(self) -> bool:
+        """Проверяет, достигнута ли активная цель"""
+        return self.points_score >= self.active_goal.target_points
+
+    def points_left_to_goal(self) -> int:
+        """Сколько баллов осталось до цели"""
+        return max(self.active_goal.target_points - self.points_score, 0)
+
+    def goal_progress_percent(self) -> int:
+        """Процент прогресса к цели"""
+        if self.active_goal.target_points <= 0:
+            return 0
+        return min(int(self.points_score / self.active_goal.target_points * 100), 100)
+
+    def confirm_goal_reward(self):
+        """Подтверждает выдачу награды родителем"""
+        self.active_goal.reward_confirmed = True
 
 
 

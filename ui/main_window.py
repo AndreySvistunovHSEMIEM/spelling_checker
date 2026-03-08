@@ -5,7 +5,8 @@ import logging
 import sys  # Add the missing sys import for checking frozen status
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QLineEdit, QComboBox,
-                               QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog)
+                               QMessageBox, QGroupBox, QInputDialog, QApplication, QSizePolicy, QFrame, QDialog,
+                               QProgressBar)
 from PySide6.QtGui import QFont, QPixmap, QIcon
 from PySide6.QtCore import Qt, QTimer, QSize, QPropertyAnimation, QEasingCurve
 from PySide6.QtWidgets import QGraphicsOpacityEffect
@@ -59,7 +60,7 @@ class SpellingTrainer(QMainWindow):
         self._init_components()
         
         # Создание интерфейса
-        self.setFixedSize(630, 700)
+        self.setFixedSize(630, 780)
         self.create_ui()
         
         # Центрируем главное окно
@@ -70,6 +71,7 @@ class SpellingTrainer(QMainWindow):
         
         # ДОБАВЬТЕ ЭТУ СТРОКУ - инициализация флага подключения сигнала
         self.category_signal_connected = False
+        self.goal_reached_notified = False
         
         # Вызываем validate_current_category ПОСЛЕ создания UI
         self._validate_current_category()
@@ -122,7 +124,8 @@ class SpellingTrainer(QMainWindow):
         
         # Загружаем настройки из репозитория
         settings = self.word_repository.app_data.settings
-        # Инициализируем reward_type до его использования
+        # Для прототипа этапа 2 фиксируем режим награды в баллах
+        settings.reward_type = "points"
         self.reward_type = settings.reward_type
         # Используем новые поля в зависимости от типа награды
         if self.reward_type == "points":
@@ -184,6 +187,9 @@ class SpellingTrainer(QMainWindow):
         
         # Верхняя панель с настройками и счетом
         self._create_top_panel(layout)
+
+        # Блок цели и прогресса к реальной награде
+        self._create_goal_panel(layout)
         
         # Область категории (по центру)
         self._create_category_area(layout)
@@ -203,6 +209,8 @@ class SpellingTrainer(QMainWindow):
         # Обновляем состояние кнопки музыки после создания UI
         if self.music_btn:
             self._update_music_button_state()
+        self.update_goal_panel()
+        self.menu_bar.update_reward_actions(self.reward_type)
     
     def _create_top_panel(self, layout):
         top_layout = QHBoxLayout()
@@ -431,6 +439,58 @@ class SpellingTrainer(QMainWindow):
         top_layout.addLayout(actions_layout)
         
         layout.addLayout(top_layout)
+
+    def _create_goal_panel(self, layout):
+        """Создает компактный блок с активной целью ребенка"""
+        goal_group = QGroupBox("Моя цель")
+        goal_layout = QVBoxLayout(goal_group)
+        goal_layout.setSpacing(8)
+
+        title_row = QHBoxLayout()
+        self.goal_title_label = QLabel()
+        self.goal_title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #2E3A59;")
+        title_row.addWidget(self.goal_title_label)
+        title_row.addStretch()
+
+        self.goal_status_label = QLabel()
+        self.goal_status_label.setStyleSheet("color: #5A6478; font-size: 12px;")
+        title_row.addWidget(self.goal_status_label)
+        goal_layout.addLayout(title_row)
+
+        self.goal_progress_bar = QProgressBar()
+        self.goal_progress_bar.setRange(0, 100)
+        self.goal_progress_bar.setTextVisible(True)
+        self.goal_progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #B8C4D6;
+                border-radius: 8px;
+                background: #F4F7FB;
+                text-align: center;
+                height: 24px;
+            }
+            QProgressBar::chunk {
+                background-color: #58B368;
+                border-radius: 7px;
+            }
+        """)
+        goal_layout.addWidget(self.goal_progress_bar)
+
+        self.goal_details_label = QLabel()
+        self.goal_details_label.setStyleSheet("color: #303030;")
+        goal_layout.addWidget(self.goal_details_label)
+
+        actions_row = QHBoxLayout()
+        self.edit_goal_btn = QPushButton("Изменить цель")
+        self.edit_goal_btn.clicked.connect(self.edit_goal)
+        actions_row.addWidget(self.edit_goal_btn)
+
+        self.claim_goal_btn = QPushButton("Награда получена")
+        self.claim_goal_btn.clicked.connect(self.confirm_goal_reward)
+        actions_row.addWidget(self.claim_goal_btn)
+        actions_row.addStretch()
+
+        goal_layout.addLayout(actions_row)
+        layout.addWidget(goal_group)
         
     def show_problem_words(self):
         """Показ проблемных слов с безопасным управлением ресурсами"""
@@ -778,6 +838,97 @@ class SpellingTrainer(QMainWindow):
         # СБРАСЫВАЕМ СТИЛЬ И ЗАГОЛОВОК ДЛЯ ПОВТОРЕНИЙ ↓
         self.image_label.setStyleSheet("border: 1px solid gray; background-color: white;")
         self._set_group_title("Задание")
+
+    def update_goal_panel(self):
+        """Обновляет блок активной цели"""
+        if not hasattr(self, 'goal_title_label'):
+            return
+
+        training_state = self.word_repository.app_data.training_state
+        goal = training_state.active_goal
+        current_points = training_state.points_score
+        percent = training_state.goal_progress_percent()
+
+        self.goal_title_label.setText(goal.title)
+        self.goal_progress_bar.setValue(percent)
+        self.goal_progress_bar.setFormat(f"{percent}%")
+
+        if goal.reward_confirmed:
+            self.goal_status_label.setText("Награда подтверждена")
+            self.goal_details_label.setText(
+                f"Прошлая цель закрыта. Текущий баланс: {current_points} баллов. Можно задать новую цель."
+            )
+        elif training_state.is_goal_reached():
+            self.goal_status_label.setText("Цель достигнута")
+            self.goal_details_label.setText(
+                f"Собрано {current_points} из {goal.target_points} баллов. Покажи экран родителю."
+            )
+        else:
+            self.goal_status_label.setText(f"Нужно {goal.target_points} баллов")
+            self.goal_details_label.setText(
+                f"Собрано {current_points} из {goal.target_points} баллов. Осталось {training_state.points_left_to_goal()}."
+            )
+
+        self.claim_goal_btn.setEnabled(training_state.is_goal_reached() and not goal.reward_confirmed)
+
+    def edit_goal(self):
+        """Редактирование активной цели для демо-сценария"""
+        training_state = self.word_repository.app_data.training_state
+        current_goal = training_state.active_goal
+
+        title, ok = QInputDialog.getText(self, "Моя цель", "Название награды:", text=current_goal.title)
+        if not ok:
+            return
+
+        title = title.strip()
+        if not title:
+            QMessageBox.warning(self, "Ошибка", "Название цели не может быть пустым.")
+            return
+
+        target_points, ok = QInputDialog.getInt(
+            self,
+            "Стоимость цели",
+            "Сколько баллов нужно набрать:",
+            value=current_goal.target_points,
+            minValue=10,
+            maxValue=1000,
+            step=5
+        )
+        if not ok:
+            return
+
+        training_state.set_goal(title, target_points)
+        self.goal_reached_notified = False
+        self.update_goal_panel()
+        self.word_repository.save_data()
+
+    def confirm_goal_reward(self):
+        """Подтверждение выдачи реальной награды родителем"""
+        training_state = self.word_repository.app_data.training_state
+        goal = training_state.active_goal
+
+        if not training_state.is_goal_reached():
+            QMessageBox.information(self, "Цель не достигнута", "Сначала нужно накопить нужное количество баллов.")
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Подтверждение награды",
+            f"Подтвердить, что ребенок получил награду «{goal.title}»?"
+        )
+        if answer != QMessageBox.Yes:
+            return
+
+        training_state.confirm_goal_reward()
+        training_state.points_score = 0
+        self.goal_reached_notified = False
+        self.update_score()
+        self.word_repository.save_data()
+        QMessageBox.information(
+            self,
+            "Награда подтверждена",
+            "Награда отмечена как полученная. Баллы обнулены, теперь можно выбрать новую цель."
+        )
     
     def _update_words_counter(self):
         """Обновляет счетчик слов для текущей категории"""
@@ -1453,6 +1604,7 @@ class SpellingTrainer(QMainWindow):
             # УМЕНЬШАЕМ счетчики для всех слов на повторении ТОЛЬКО после ответа пользователя
             training_state.decrement_repeat_counters()
             self.update_score()
+            self._check_goal_completion()
             self._update_words_counter() # Обновляем счетчик слов
             self.word_repository.save_data()
             
@@ -1520,7 +1672,7 @@ class SpellingTrainer(QMainWindow):
         # Обновляем отображение счёта в зависимости от текущего типа награды
         current_score = training_state.get_current_score(self.reward_type)
         if self.reward_type == "points":
-            score_text = f"{int(current_score)} балл"
+            score_text = f"{int(current_score)} балл."
         else:
             score_text = f"{current_score:.2f} руб."
         self.score_label.setText(score_text)
@@ -1531,11 +1683,15 @@ class SpellingTrainer(QMainWindow):
                 self.payout_btn.setText("₽")
                 self.payout_btn.setToolTip("Выплатить")
             else:
-                self.payout_btn.setText("$")
-                self.payout_btn.setToolTip("Выплатить")
+                self.payout_btn.setText("Ц")
+                self.payout_btn.setToolTip("Цель работает только с баллами")
             
             # Скрываем кнопку выплаты, если тип награды - баллы
             self.payout_btn.setVisible(self.reward_type == "rubles")
+
+        self.update_goal_panel()
+        if hasattr(self, 'menu_bar'):
+            self.menu_bar.update_reward_actions(self.reward_type)
         
         # Сохраняем данные при обновлении счёта для обеспечения сохранности
         self.word_repository.save_data()
@@ -1651,8 +1807,6 @@ class SpellingTrainer(QMainWindow):
                 self.repeat_mistakes = dialog.get_repeat_mistakes()
                 self.repeat_mistakes_range = dialog.get_repeat_mistakes_range()
                 self.infinite_mode = dialog.get_infinite_mode()
-                reward_type = dialog.get_reward_type()
-                
                 # Обновляем настройки в репозитории
                 # Синхронизируем старые и новые поля для обеспечения совместимости
                 # Получаем новые значения из диалога
@@ -1680,18 +1834,15 @@ class SpellingTrainer(QMainWindow):
                 self.word_repository.app_data.settings.repeat_mistakes = self.repeat_mistakes
                 self.word_repository.app_data.settings.repeat_mistakes_range = self.repeat_mistakes_range
                 self.word_repository.app_data.settings.infinite_mode = self.infinite_mode
-                self.word_repository.app_data.settings.reward_type = reward_type
+                self.word_repository.app_data.settings.reward_type = "points"
                 
                 # ОБНОВЛЯЕМ ТИП НАГРАДЫ В ОСНОВНОМ ОКНЕ
-                self.reward_type = reward_type
+                self.reward_type = "points"
+                self.word_repository.app_data.settings.reward_type = "points"
                 
                 # ОБНОВЛЯЕМ ОСНОВНЫЕ ЗНАЧЕНИЯ НАГРАДЫ И ШТРАФА В ЗАВИСИМОСТИ ОТ ТИПА НАГРАДЫ
-                if reward_type == "points":
-                    self.cost_per_word = points_cost
-                    self.penalty_per_word = points_penalty
-                else:  # rubles
-                    self.cost_per_word = rubles_cost
-                    self.penalty_per_word = rubles_penalty
+                self.cost_per_word = points_cost
+                self.penalty_per_word = points_penalty
                 
                 # ОБНОВЛЯЕМ СЧЕТЧИК СЛОВ ДЛЯ ОТОБРАЖЕНИЯ ∞
                 self._update_words_counter()
@@ -1851,6 +2002,21 @@ class SpellingTrainer(QMainWindow):
         """Показать диалог справки"""
         help_dialog = HelpDialog(self)
         help_dialog.exec()
+
+    def _check_goal_completion(self):
+        """Показывает уведомление, когда ребенок достигает цели"""
+        training_state = self.word_repository.app_data.training_state
+        if training_state.is_goal_reached() and not training_state.active_goal.reward_confirmed:
+            if not self.goal_reached_notified:
+                self.goal_reached_notified = True
+                QMessageBox.information(
+                    self,
+                    "Цель достигнута",
+                    f"Ребенок накопил достаточно баллов для цели «{training_state.active_goal.title}». "
+                    "Теперь родитель может подтвердить награду."
+                )
+        else:
+            self.goal_reached_notified = False
     
     def open_payout_dialog(self):
         """Открывает диалог выплаты рублей"""
