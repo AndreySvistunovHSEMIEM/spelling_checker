@@ -43,9 +43,6 @@ htmlcov/
 core/progress.json
 core/settings.json
 core/words.json
-core/audio/
-core/audio2/
-core/images/
 
 # Local packaged app assets copied during builds
 Output/
